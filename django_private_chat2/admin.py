@@ -8,14 +8,14 @@ from .models import (
 )
 
 
-@admin.register(Dialog)
-class DialogAdmin(admin.ModelAdmin):
-    pass
-
-
-@admin.register(Message)
-class MessageAdmin(admin.ModelAdmin):
-    pass
-
-
-
+# @admin.register(Dialog)
+# class DialogAdmin(admin.ModelAdmin):
+#     pass
+#
+#
+# @admin.register(Message)
+# class MessageAdmin(admin.ModelAdmin):
+#     pass
+#
+#
+#

@@ -19,6 +19,7 @@ def serialize_text_message(m: TextMessage, datetime_formatter: Callable[[datetim
     obj = {
         "dialog_id": m.dialog_id,
         "data": m.data,
+        "msg_id": m.msg_id,
         "sent_by": m.sent_by.id,
         "sent_at": datetime_formatter(m.sent_at),
         "was_read": m.was_read

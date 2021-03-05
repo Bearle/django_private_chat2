@@ -19,7 +19,7 @@ class DialogUser:
 
 @dataclasses.dataclass(frozen=True)
 class Dialog:
-    id: uuid
+    id: str
     creator: DialogUser
     opponent: DialogUser
 
@@ -30,7 +30,8 @@ class Dialog:
 
 @dataclasses.dataclass(frozen=True)
 class Message:
-    dialog_id: uuid
+    dialog_id: str
+    msg_id: int
     data: bytes
     sent_by: DialogUser
     sent_at: datetime.datetime
