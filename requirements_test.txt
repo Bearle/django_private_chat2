@@ -1,0 +1,7 @@
+-r ./requirements.txt
+coverage>=5.5
+mock>=4.0.3
+tox>=3.2.3
+codecov>=2.1.11
+
+# Additional test requirements go here
