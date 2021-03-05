@@ -13,52 +13,8 @@ from .models import (
 )
 
 
-class DialogCreateView(CreateView):
-
-    model = Dialog
+from django.http import HttpResponse
 
 
-class DialogDeleteView(DeleteView):
 
-    model = Dialog
-
-
-class DialogDetailView(DetailView):
-
-    model = Dialog
-
-
-class DialogUpdateView(UpdateView):
-
-    model = Dialog
-
-
-class DialogListView(ListView):
-
-    model = Dialog
-
-
-class MessageCreateView(CreateView):
-
-    model = Message
-
-
-class MessageDeleteView(DeleteView):
-
-    model = Message
-
-
-class MessageDetailView(DetailView):
-
-    model = Message
-
-
-class MessageUpdateView(UpdateView):
-
-    model = Message
-
-
-class MessageListView(ListView):
-
-    model = Message
 
