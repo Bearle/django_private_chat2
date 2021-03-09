@@ -71,3 +71,8 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
         ordering = ('-created',)
         verbose_name = _("Message")
         verbose_name_plural = _("Messages")
+
+# TODO:
+# Possible features - update with pts
+# was_online field for User (1to1 model)
+# read_at - timestamp

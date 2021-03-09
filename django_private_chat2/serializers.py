@@ -1,4 +1,4 @@
-from .models import DialogUser, Dialog, Message, TextMessage
+from .models import DialogUser, Dialog, Message, TextMessage, MessageModel
 from datetime import datetime
 from typing import Callable
 import json
@@ -26,3 +26,15 @@ def serialize_text_message(m: TextMessage, datetime_formatter: Callable[[datetim
     }
     return json.dumps(obj)
 
+def serialize_message_model(m: MessageModel) -> str:
+    obj = {
+        "id": m.id,
+        "text": m.text,
+        "sent": m.created,
+        "edited": m.modified,
+        "read": m.read,
+        "file": m.file.path,
+        "sender": m.sender.pk,
+        "recipient": m.recipient.pk
+    }
+    return json.dumps(obj)
