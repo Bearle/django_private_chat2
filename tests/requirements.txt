@@ -4,4 +4,6 @@
 # Your app in editable mode.
 -e ../
 
+
+Django==3.1.7
 channels_redis==3.2.0

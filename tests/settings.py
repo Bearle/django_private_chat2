@@ -51,7 +51,7 @@ ROOT_URLCONF = 'tests.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates'), ],
+        'DIRS': [os.path.join(BASE_DIR, 'tests', 'templates'), ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -63,7 +63,6 @@ TEMPLATES = [
         },
     },
 ]
-
 WSGI_APPLICATION = 'example.wsgi.application'
 
 # Database
@@ -119,12 +118,11 @@ MEDIA_URL = '/media/'
 
 # look for static assets here
 STATICFILES_DIRS = [
-    join(BASE_DIR, 'static'),
+    join(BASE_DIR, 'tests', 'static'),
 ]
 
 STATIC_URL = '/static/'
 ADMIN_MEDIA_PREFIX = '/static/admin/'
-
 
 LOGIN_REDIRECT_URL = '/admin'
 LOGIN_URL = '/admin/login/'
@@ -137,5 +135,19 @@ CHANNEL_LAYERS = {
         'CONFIG': {
             "hosts": [('127.0.0.1', 6379)],
         },
+    },
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
     },
 }
