@@ -13,6 +13,9 @@ logger = logging.getLogger('django_private_chat2.consumers')
 
 class ErrorTypes(enum.IntEnum):
     MessageParsingError = 1
+    TextMessageBlank = 2
+    TextMessageTooLong = 3
+    InvalidMessageReadId = 4
 
 
 ErrorDescription = Tuple[ErrorTypes, str]
@@ -53,7 +56,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"User {self.user.pk} connected, "
                         f"adding channel {self.channel_name} to {dialogs} dialog groups")
             for d in dialogs:  # type: int
-                await self.channel_layer.group_add(str(d), self.channel_name)
+                s = str(d)
+                if s != self.group_name:
+                    await self.channel_layer.group_add(s, self.channel_name)
         else:
             await self.close(code=4001)
 
@@ -71,6 +76,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]):
         logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
+        if msg_type == MessageTypes.WentOffline \
+            or msg_type == MessageTypes.WentOnline \
+            or msg_type == MessageTypes.ErrorOccured:
+            logger.info(f"Ignoring message {msg_type.name}")
+        else:
+            if msg_type == MessageTypes.IsTyping:
+                await self.channel_layer.group_send(self.group_name, {"type": "is_typing", "user_pk": self.user.pk})
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
@@ -108,6 +120,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         #     }
         # )
 
+    async def is_typing(self, event):
+        await self.send(
+            text_data=json.dumps({
+                'msg_type': MessageTypes.IsTyping,
+                'user_pk': event['user_pk']
+            }))
+
     async def user_went_online(self, event):
         await self.send(
             text_data=json.dumps({
@@ -115,11 +134,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'user_pk': event['user_pk']
             }))
 
-    async def recieve_group_message(self, event):
-        message = event['message']
-
-        # Send message to WebSocket
+    async def user_went_offline(self, event):
         await self.send(
             text_data=json.dumps({
-                'message': message
+                'msg_type': MessageTypes.WentOffline,
+                'user_pk': event['user_pk']
             }))
