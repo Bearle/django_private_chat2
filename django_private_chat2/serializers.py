@@ -30,11 +30,11 @@ def serialize_message_model(m: MessageModel) -> str:
     obj = {
         "id": m.id,
         "text": m.text,
-        "sent": m.created,
-        "edited": m.modified,
+        "sent": m.created.timestamp(),
+        "edited": m.modified.timestamp(),
         "read": m.read,
-        "file": m.file.path,
+        "file": m.file.path if m.file else None,
         "sender": m.sender.pk,
         "recipient": m.recipient.pk
     }
-    return json.dumps(obj)
+    return obj

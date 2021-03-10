@@ -70,7 +70,7 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
         return localtime(self.created)
 
     def __str__(self):
-        return self.pk
+        return str(self.pk)
 
     class Meta:
         ordering = ('-created',)
@@ -79,7 +79,7 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
 
     @staticmethod
     def get_dialogs_for_user(user: AbstractUser):
-        qs = MessageModel.objects.filter(Q(recipient=user) | Q(sender=user)).distinct().values_list("sender_id", "recipient_id")
+        qs = MessageModel.objects.filter(Q(recipient=user) | Q(sender=user)).order_by().values_list("sender_id", "recipient_id").distinct()
         return qs
 
 # TODO:

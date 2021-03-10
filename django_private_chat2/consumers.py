@@ -2,7 +2,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import InMemoryChannelLayer
 from channels.db import database_sync_to_async
 from .models import MessageModel
-from typing import List
+from typing import List, Set
 from django.contrib.auth.models import AbstractUser
 import logging
 import json
@@ -21,8 +21,9 @@ class MessageTypes(enum.IntEnum):
 
 
 @database_sync_to_async
-def get_groups_to_add(u: AbstractUser) -> List[str]:
-    return list(MessageModel.get_dialogs_for_user(u))
+def get_groups_to_add(u: AbstractUser) -> Set[int]:
+    l = MessageModel.get_dialogs_for_user(u)
+    return set(list(sum(l, ())))
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -40,9 +41,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.accept()
             dialogs = await get_groups_to_add(self.user)
             logger.info(f"User {self.user.pk} connected, "
-                        f"adding channel {self.channel_name} to {len(dialogs)} dialog groups")
-            for d in dialogs:  # type: str
-                await self.channel_layer.group_add(d, self.channel_name)
+                        f"adding channel {self.channel_name} to {dialogs} dialog groups")
+            for d in dialogs:  # type: int
+                await self.channel_layer.group_add(str(d), self.channel_name)
         else:
             await self.close()
 
