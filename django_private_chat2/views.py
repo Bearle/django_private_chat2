@@ -28,7 +28,7 @@ class MessagesModelList(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = MessageModel.objects.filter(Q(recipient=self.request.user) |
-                                         Q(sender=self.request.user))
+                                         Q(sender=self.request.user)).prefetch_related('sender','recipient')
 
         return qs.order_by('-created')
 
