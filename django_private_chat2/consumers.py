@@ -18,6 +18,8 @@ class ErrorTypes(enum.IntEnum):
 ErrorDescription = Tuple[ErrorTypes, str]
 
 
+# TODO: add tx_id to distinguish errors for different transactions
+
 class MessageTypes(enum.IntEnum):
     WentOnline = 1
     WentOffline = 2
@@ -67,6 +69,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             for d in dialogs:
                 await self.channel_layer.group_discard(str(d), self.channel_name)
 
+    async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]):
+        logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
+
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
         error: Optional[ErrorDescription] = None
@@ -82,12 +87,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 else:
                     try:
                         msg_type_case: MessageTypes = MessageTypes(msg_type)
+                        await self.handle_received_message(msg_type_case, text_data_json)
                     except ValueError as e:
                         error = (ErrorTypes.MessageParsingError, f"msg_type decoding error - {e}")
         except json.JSONDecodeError as e:
             error = (ErrorTypes.MessageParsingError, f"jsonDecodeError - {e}")
-            # TODO: handle json decode error
-
+        if error is not None:
+            await self.send(text_data=json.dumps({
+                'msg_type': MessageTypes.ErrorOccured,
+                'error': error
+            }))
         # message = text_data_json['message']
         #
         # # Send message to room group
