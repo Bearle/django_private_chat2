@@ -1,21 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from django.contrib import admin
-
-from .models import (
-   Dialog,
-   Message,
-)
+from django.contrib.admin import ModelAdmin, site
+from .models import MessageModel
 
 
-# @admin.register(Dialog)
-# class DialogAdmin(admin.ModelAdmin):
-#     pass
-#
-#
-# @admin.register(Message)
-# class MessageAdmin(admin.ModelAdmin):
-#     pass
-#
-#
-#
+class MessageModelAdmin(ModelAdmin):
+    readonly_fields = ('created', 'modified',)
+    search_fields = ('id', 'text', 'sender__pk', 'recipient__pk')
+    list_display = ('id', 'sender', 'recipient', 'text', 'file', 'read')
+    list_display_links = ('id',)
+    list_filter = ('sender', 'recipient')
+    date_hierarchy = 'created'
+
+
+site.register(MessageModel, MessageModelAdmin)

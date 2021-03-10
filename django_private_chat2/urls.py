@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 from django.conf.urls import url
-from django.views.generic import TemplateView
+from django.urls import path
 from . import consumers
-# from . import views
+from . import views
 
 
 app_name = 'django_private_chat2'
 websocket_urlpatterns = [
-    url(r'^ws$', consumers.ChatConsumer),
+    url(r'^chat_ws$', consumers.ChatConsumer),
 ]
 
-urlpatterns = []
+urlpatterns = [
+    path('messages/', views.MessagesModelList.as_view(), name='messages_list')
+]

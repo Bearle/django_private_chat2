@@ -3,3 +3,5 @@
 
 # Your app in editable mode.
 -e ../
+
+channels_redis==3.2.0

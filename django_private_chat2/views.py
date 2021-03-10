@@ -19,11 +19,12 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 
 from django.http import HttpResponse, JsonResponse
 from django.core.paginator import Page, Paginator
+from django.conf import settings
 
 
 class MessagesModelList(LoginRequiredMixin, ListView):
-    http_method_names = ['get',]
-    paginate_by = 50
+    http_method_names = ['get', ]
+    paginate_by = getattr(settings,'MESSAGES_PAGINATION', 500)
 
     def get_queryset(self):
         qs = MessageModel.objects.filter(Q(recipient=self.request.user) |
