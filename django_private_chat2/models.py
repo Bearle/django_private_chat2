@@ -5,10 +5,15 @@ from django.conf import settings
 from django.utils.translation import ugettext as _
 from django.utils.timezone import localtime
 from model_utils.models import TimeStampedModel, SoftDeletableModel
+from django.contrib.auth.models import AbstractUser
+from django.contrib.auth import get_user_model
 import dataclasses
 import uuid
 import datetime
 from typing import Optional
+from django.db.models import Q
+
+UserModel: AbstractUser = get_user_model()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -71,6 +76,11 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
         ordering = ('-created',)
         verbose_name = _("Message")
         verbose_name_plural = _("Messages")
+
+    @staticmethod
+    def get_dialogs_for_user(user: AbstractUser):
+        qs = MessageModel.objects.filter(Q(recipient=user) | Q(sender=user)).distinct().values_list("sender_id", "recipient_id")
+        return qs
 
 # TODO:
 # Possible features - update with pts

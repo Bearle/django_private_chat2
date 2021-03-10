@@ -146,6 +146,12 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         },
     },
+    'loggers': {
+        'django.db.backends': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        }
+    },
     'root': {
         'handlers': ['console'],
         'level': 'INFO',
