@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, {Component} from 'react';
 import 'react-chat-elements/dist/main.css';
 import {
     MessageBox,
@@ -16,9 +16,9 @@ import {
     MeetingList,
 } from 'react-chat-elements/';
 
-import {FaSearch , FaComments, FaWindowClose as FaClose, FaSquare} from 'react-icons/fa';
+import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
-
+import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
     format,
 } from 'timeago.js';
@@ -31,13 +31,29 @@ export class App extends Component {
     constructor(props) {
         super(props);
 
+        this.textInput = null;
+        this.setTextInputRef = element => {
+            this.textInput = element;
+        };
+        this.clearTextInput = () => {
+            if (this.textInput) this.textInput.clear();
+        };
+
         this.state = {
             show: true,
             list: 'chat',
             messageList: [],
+            // socket: new ReconnectingWebSocket('ws://localhost:8000/chat_ws')
         };
 
         this.addMessage = this.addMessage.bind(this);
+    }
+
+    componentDidMount() {
+        // let socket = this.state.socket;
+        // socket.addEventListener('open', () => {
+        //     socket.send(JSON.stringify({"msg_type": 5}));
+        // });
     }
 
     UNSAFE_componentWillMount() {
@@ -110,28 +126,28 @@ export class App extends Component {
                     replyButton: true,
                     reply: this.token() >= 1 ? ({
                         photoURL: this.token() >= 1 ? `data:image/png;base64,${this.photo(150)}` : null,
-                        title: loremIpsum({ count: 2, units: 'words' }),
+                        title: loremIpsum({count: 2, units: 'words'}),
                         titleColor: this.getRandomColor(),
-                        message: loremIpsum({ count: 1, units: 'sentences' }),
+                        message: loremIpsum({count: 1, units: 'sentences'}),
                     }) : null,
                     meeting: this.token() >= 1 ? ({
-                        subject: loremIpsum({ count: 2, units: 'words' }),
-                        title: loremIpsum({ count: 2, units: 'words' }),
+                        subject: loremIpsum({count: 2, units: 'words'}),
+                        title: loremIpsum({count: 2, units: 'words'}),
                         date: +new Date(),
-                        collapseTitle: loremIpsum({ count: 2, units: 'words' }),
+                        collapseTitle: loremIpsum({count: 2, units: 'words'}),
                         participants: Array(this.token() + 6).fill(1).map(x => ({
                             id: parseInt(Math.random() * 10 % 7),
-                            title: loremIpsum({ count: 1, units: 'words' }),
+                            title: loremIpsum({count: 1, units: 'words'}),
                         })),
                         dataSource: Array(this.token() + 5).fill(1).map(x => ({
                             id: String(Math.random()),
                             avatar: `data:image/png;base64,${this.photo()}`,
-                            message: loremIpsum({ count: 1, units: 'sentences' }),
-                            title: loremIpsum({ count: 2, units: 'words' }),
+                            message: loremIpsum({count: 1, units: 'sentences'}),
+                            title: loremIpsum({count: 2, units: 'words'}),
                             avatarFlexible: true,
                             date: +new Date(),
                             event: {
-                                title: loremIpsum({ count: 2, units: 'words' }),
+                                title: loremIpsum({count: 2, units: 'words'}),
                                 avatars: Array(this.token() + 2).fill(1).map(x => ({
                                     src: `data:image/png;base64,${this.photo()}`,
                                     title: "react, rce"
@@ -140,8 +156,8 @@ export class App extends Component {
                             },
                             record: {
                                 avatar: `data:image/png;base64,${this.photo()}`,
-                                title: loremIpsum({ count: 1, units: 'words' }),
-                                savedBy: 'Kaydeden: ' + loremIpsum({ count: 2, units: 'words' }),
+                                title: loremIpsum({count: 1, units: 'words'}),
+                                savedBy: 'Kaydeden: ' + loremIpsum({count: 2, units: 'words'}),
                                 time: new Date().toLocaleString(),
                             },
                         })),
@@ -149,9 +165,12 @@ export class App extends Component {
                     type: mtype,
                     theme: 'white',
                     view: 'list',
-                    title: loremIpsum({ count: 2, units: 'words' }),
+                    title: loremIpsum({count: 2, units: 'words'}),
                     titleColor: this.getRandomColor(),
-                    text: mtype === 'spotify' ? 'spotify:track:0QjjaCaXE45mvhCnV3C0TA' : loremIpsum({ count: 1, units: 'sentences' }),
+                    text: mtype === 'spotify' ? 'spotify:track:0QjjaCaXE45mvhCnV3C0TA' : loremIpsum({
+                        count: 1,
+                        units: 'sentences'
+                    }),
                     data: {
                         videoURL: this.token() >= 1 ? 'https://www.w3schools.com/html/mov_bbb.mp4' : 'http://www.exit109.com/~dnn/clips/RW20seconds_1.mp4',
                         audioURL: 'https://www.w3schools.com/html/horse.mp3',
@@ -185,10 +204,10 @@ export class App extends Component {
                     avatarFlexible: true,
                     statusColor: 'lightgreen',
                     statusColorType: parseInt(Math.random() * 100 % 2) === 1 ? 'encircle' : undefined,
-                    alt: loremIpsum({ count: 2, units: 'words' }),
-                    title: loremIpsum({ count: 2, units: 'words' }),
+                    alt: loremIpsum({count: 2, units: 'words'}),
+                    title: loremIpsum({count: 2, units: 'words'}),
                     date: new Date(),
-                    subtitle: loremIpsum({ count: 1, units: 'sentences' }),
+                    subtitle: loremIpsum({count: 1, units: 'sentences'}),
                     unread: parseInt(Math.random() * 10 % 3),
                     dropdownMenu: (
                         <Dropdown
@@ -198,14 +217,14 @@ export class App extends Component {
                                 type: "transparent",
                                 color: "#cecece",
                                 icon: {
-                                    component: <MdMenu />,
+                                    component: <MdMenu/>,
                                     size: 24,
                                 }
                             }}
                             items={[
                                 {
                                     icon: {
-                                        component: <FaSquare />,
+                                        component: <FaSquare/>,
                                         float: 'left',
                                         color: 'red',
                                         size: 22,
@@ -230,7 +249,7 @@ export class App extends Component {
                                     },
                                     text: 'Menu Item'
                                 },
-                            ]} />
+                            ]}/>
                     ),
                 };
             case 'meeting':
@@ -238,7 +257,7 @@ export class App extends Component {
                     id: String(Math.random()),
                     lazyLoadingImage: `data:image/png;base64,${this.photo()}`,
                     avatarFlexible: true,
-                    subject: loremIpsum({ count: 1, units: 'sentences' }),
+                    subject: loremIpsum({count: 1, units: 'sentences'}),
                     date: new Date(),
                     avatars: Array(this.token() + 2).fill(1).map(x => ({
                         src: `data:image/png;base64,${this.photo()}`,
@@ -278,10 +297,10 @@ export class App extends Component {
                                         type: 'transparent',
                                         color: 'black',
                                         onClick: () => {
-                                            this.setState({ show: false })
+                                            this.setState({show: false})
                                         },
                                         icon: {
-                                            component: <FaClose />,
+                                            component: <FaClose/>,
                                             size: 18
                                         }
                                     }]}
@@ -294,7 +313,7 @@ export class App extends Component {
                                         color: 'white',
                                         backgroundColor: 'lightgreen',
                                         text: "Tamam",
-                                    }]} />
+                                    }]}/>
 
                                 <Button
                                     type='transparent'
@@ -309,13 +328,13 @@ export class App extends Component {
                         }
                         center={
                             this.state.list === 'chat' ?
-                            <ChatList
-                                dataSource={chatSource} />
-                            :
-                            <MeetingList
-                                onMeetingClick={console.log}
-                                onShareClick={console.log}
-                                dataSource={meetingSource} />
+                                <ChatList
+                                    dataSource={chatSource}/>
+                                :
+                                <MeetingList
+                                    onMeetingClick={console.log}
+                                    onShareClick={console.log}
+                                    dataSource={meetingSource}/>
                         }
                         bottom={
                             <span>
@@ -323,19 +342,19 @@ export class App extends Component {
                                     type='transparent'
                                     color='black'
                                     icon={{
-                                        component: <FaComments />,
+                                        component: <FaComments/>,
                                         size: 18
-                                    }} />
+                                    }}/>
                                 <Button
                                     type='transparent'
                                     color='black'
                                     icon={{
-                                        component: <FaSearch />,
+                                        component: <FaSearch/>,
                                         size: 18
-                                    }} />
+                                    }}/>
                                 <Button text="Count"></Button>
                             </span>
-                        } />
+                        }/>
                 </div>
                 <div
                     className='right-panel'>
@@ -343,12 +362,12 @@ export class App extends Component {
                         className='message-list'
                         lockable={true}
                         downButtonBadge={10}
-                        dataSource={this.state.messageList} />
+                        dataSource={this.state.messageList}/>
 
                     <Input
                         placeholder="Mesajınızı buraya yazınız."
                         defaultValue=""
-                        ref='input'
+                        ref={this.setTextInputRef}
                         multiline={true}
                         // buttonsFloat='left'
                         onKeyPress={(e) => {
@@ -356,7 +375,7 @@ export class App extends Component {
                                 return true;
                             }
                             if (e.charCode === 13) {
-                                this.refs.input.clear();
+                                this.clearTextInput();
                                 this.addMessage();
                                 e.preventDefault();
                                 return false;
@@ -365,8 +384,8 @@ export class App extends Component {
                         rightButtons={
                             <Button
                                 text='Send'
-                                onClick={() => this.addMessage()} />
-                        } />
+                                onClick={() => this.addMessage()}/>
+                        }/>
                 </div>
             </div>
         );
