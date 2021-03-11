@@ -13,10 +13,9 @@ import {
     SideBar,
     Dropdown,
     Popup,
-    MeetingList,
-} from 'react-chat-elements/';
+} from 'react-chat-elements';
 
-import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare} from 'react-icons/fa';
+import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
@@ -30,7 +29,7 @@ export class App extends Component {
 
     constructor(props) {
         super(props);
-
+        // Refs
         this.textInput = null;
         this.setTextInputRef = element => {
             this.textInput = element;
@@ -38,6 +37,16 @@ export class App extends Component {
         this.clearTextInput = () => {
             if (this.textInput) this.textInput.clear();
         };
+
+        this.searchInput = null;
+        this.setSearchInputRef = element => {
+            this.searchInput = element;
+        };
+        this.clearSearchInput = () => {
+            if (this.searchInput) this.searchInput.clear();
+        };
+
+
 
         this.state = {
             show: true,
@@ -296,60 +305,43 @@ export class App extends Component {
             arr.push(i);
 
         var chatSource = arr.map(x => this.random('chat'));
-        var meetingSource = arr.map(x => this.random('meeting'));
 
         return (
             <div className='container'>
                 <div
                     className='chat-list'>
                     <SideBar
+                        type='light'
                         top={
-                            <div>
-                                <Popup
-                                    // show={this.state.show}
-                                    header='Lorem ipsum dolor sit amet.'
-                                    headerButtons={[{
-                                        type: 'transparent',
-                                        color: 'black',
-                                        onClick: () => {
-                                            this.setState({show: false})
-                                        },
-                                        icon: {
-                                            component: <FaClose/>,
+                            <span className='chat-list'>
+                                <Input
+                                    placeholder="Search..."
+                                    ref={this.setSearchInputRef}
+                                    rightButtons={
+                                        <div>
+                                            <Button
+                                        type='transparent'
+                                        color='black'
+                                        onClick={() => console.log("search invoke with" + this.searchInput.input.value)}
+                                        icon={{
+                                            component: <FaSearch/>,
                                             size: 18
-                                        }
-                                    }]}
-                                    text='Lorem ipsum dolor sit amet, consectetur adipisicing elit. Voluptatem animi veniam voluptas eius!'
-                                    footerButtons={[{
-                                        color: 'white',
-                                        backgroundColor: '#ff5e3e',
-                                        text: "Vazgeç",
-                                    }, {
-                                        color: 'white',
-                                        backgroundColor: 'lightgreen',
-                                        text: "Tamam",
-                                    }]}/>
+                                        }}/>
+                                        <Button
+                                            type='transparent'
+                                            color='black'
+                                            icon={{
+                                                component: <FaTimesCircle/>,
+                                                size: 18
+                                            }}
+                                            onClick={() => this.clearSearchInput()}/>
+                                        </div>
+                                    }
+                                />
 
-                                <Button
-                                    type='transparent'
-                                    color='black'
-                                    text={this.state.list === 'chat' ? 'MeetingList' : 'ChatList'}
-                                    onClick={() => {
-                                        this.setState({
-                                            list: this.state.list === 'chat' ? 'meeeting' : 'chat',
-                                        });
-                                    }}/>
-                            </div>
-                        }
-                        center={
-                            this.state.list === 'chat' ?
-                                <ChatList
-                                    dataSource={chatSource}/>
-                                :
-                                <MeetingList
-                                    onMeetingClick={console.log}
-                                    onShareClick={console.log}
-                                    dataSource={meetingSource}/>
+                                <ChatList dataSource={chatSource}/>
+                            </span>
+
                         }
                         bottom={
                             <span>
@@ -380,7 +372,7 @@ export class App extends Component {
                         dataSource={this.state.messageList}/>
 
                     <Input
-                        placeholder="Mesajınızı buraya yazınız."
+                        placeholder="Type here to send a message."
                         defaultValue=""
                         ref={this.setTextInputRef}
                         multiline={true}
