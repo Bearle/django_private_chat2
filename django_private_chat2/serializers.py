@@ -26,12 +26,12 @@ def serialize_text_message(m: TextMessage, datetime_formatter: Callable[[datetim
     }
     return json.dumps(obj)
 
-def serialize_message_model(m: MessageModel) -> str:
+def serialize_message_model(m: MessageModel):
     obj = {
         "id": m.id,
         "text": m.text,
-        "sent": m.created.timestamp(),
-        "edited": m.modified.timestamp(),
+        "sent": int(m.created.timestamp()),
+        "edited": int(m.modified.timestamp()),
         "read": m.read,
         "file": m.file.path if m.file else None,
         "sender": m.sender.pk,
