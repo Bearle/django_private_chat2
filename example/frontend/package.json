@@ -27,8 +27,9 @@
     "timeago.js": "^4.0.2"
   },
   "scripts": {
-    "start": "webpack serve --mode development --config webpack.config.js --progress --profile --content-base src/",
-    "build": "webpack --mode production"
+    "postinstall": "dotnet tool restore",
+    "start": "dotnet fable watch fs-src --run webpack serve --mode development --config webpack.config.js --progress --profile --content-base src/",
+    "build": "dotnet fable fs-src --run webpack --mode production"
   },
   "browserslist": {
     "production": [

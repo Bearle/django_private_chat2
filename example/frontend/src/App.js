@@ -18,6 +18,7 @@ import debounce from 'lodash.debounce';
 import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
+import { sayHelloFable } from "../fs-src/App.fs.js"
 import {
     format,
 } from 'timeago.js';
@@ -68,6 +69,7 @@ export class App extends Component {
     }
 
     componentDidMount() {
+        console.log(sayHelloFable());
         this.setState({socketConnectionState: this.state.socket.readyState});
         const that = this;
         let socket = this.state.socket;
