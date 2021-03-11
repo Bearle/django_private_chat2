@@ -76,7 +76,7 @@ module.exports = function(_env, argv) {
     optimization: {
       minimize: isProduction,
       minimizer: [
-        new ESBuildMinifyPlugin({target: 'es2015', minify:isProduction}),
+        new ESBuildMinifyPlugin({target: 'es2015', minify:isProduction, sourcemap: true}),
         new OptimizeCssAssetsPlugin()
       ],
       // splitChunks: {

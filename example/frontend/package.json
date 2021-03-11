@@ -18,6 +18,7 @@
     "webpack-dev-server": "^3.11.2"
   },
   "dependencies": {
+    "lodash.debounce": "^4.0.8",
     "react": "^16.14.0",
     "react-chat-elements": "^10.14.0",
     "react-dom": "^16.14.0",

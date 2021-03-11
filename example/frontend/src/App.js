@@ -14,7 +14,7 @@ import {
     Dropdown,
     Popup,
 } from 'react-chat-elements';
-
+import debounce from 'lodash.debounce';
 import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
@@ -25,6 +25,15 @@ import {
 import loremIpsum from 'lorem-ipsum';
 import Identicon from 'identicon.js';
 
+const MessageTypes = Object.freeze({
+    WentOnline: 1,
+    WentOffline: 2,
+    TextMessage: 3,
+    FileMessage: 4,
+    IsTyping: 5,
+    MessageRead: 6,
+    ErrorOccured: 7
+})
 export class App extends Component {
 
     constructor(props) {
@@ -47,29 +56,34 @@ export class App extends Component {
         };
 
 
-
         this.state = {
             show: true,
             list: 'chat',
+            socketConnectionState: 0,
             messageList: [],
-            socket: new WebSocket('ws://' + window.location.host + '/chat_ws')
+            socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
         };
 
         this.addMessage = this.addMessage.bind(this);
     }
 
     componentDidMount() {
+        this.setState({socketConnectionState: this.state.socket.readyState});
+        const that = this;
         let socket = this.state.socket;
         socket.onopen = function (e) {
-            socket.send(JSON.stringify({"msg_type": 5}));
-            socket.send(JSON.stringify({"msg_type": "a"}));
-            socket.send(JSON.stringify({"msg_typee": 5}));
-            socket.send("");
+            that.setState({socketConnectionState: socket.readyState});
         }
         socket.onmessage = function (e) {
+            that.setState({socketConnectionState: socket.readyState});
             console.log("websocket message: ")
             console.log(e.data)
         };
+        socket.onclose = function (e) {
+            that.setState({socketConnectionState: socket.readyState});
+            console.log("websocket closed")
+        }
+
         // let socket = this.state.socket;
         // socket.addEventListener('open', () => {
         //     socket.send(JSON.stringify({"msg_type": 5}));
@@ -84,6 +98,21 @@ export class App extends Component {
         this.addMessage(7)
     }
 
+    getSocketState() {
+        if (this.state.socket.readyState === 0) {
+            return "Connecting..."
+        } else if (this.state.socket.readyState === 1) {
+            return "Connected"
+        } else if (this.state.socket.readyState === 2) {
+            return "Disconnecting..."
+        } else if (this.state.socket.readyState === 3) {
+            return "Disconnected"
+        }
+    }
+
+    sendIsTypingMessage(){
+        this.state.socket.send(JSON.stringify({"msg_type": MessageTypes.IsTyping}));
+    }
     getRandomColor() {
         var letters = '0123456789ABCDEF';
         var color = '#';
@@ -305,7 +334,7 @@ export class App extends Component {
             arr.push(i);
 
         var chatSource = arr.map(x => this.random('chat'));
-
+        const debouncedTyping = debounce(() => this.sendIsTypingMessage(), 2000);
         return (
             <div className='container'>
                 <div
@@ -320,21 +349,21 @@ export class App extends Component {
                                     rightButtons={
                                         <div>
                                             <Button
-                                        type='transparent'
-                                        color='black'
-                                        onClick={() => console.log("search invoke with" + this.searchInput.input.value)}
-                                        icon={{
-                                            component: <FaSearch/>,
-                                            size: 18
-                                        }}/>
-                                        <Button
-                                            type='transparent'
-                                            color='black'
-                                            icon={{
-                                                component: <FaTimesCircle/>,
-                                                size: 18
-                                            }}
-                                            onClick={() => this.clearSearchInput()}/>
+                                                type='transparent'
+                                                color='black'
+                                                onClick={() => console.log("search invoke with" + this.searchInput.input.value)}
+                                                icon={{
+                                                    component: <FaSearch/>,
+                                                    size: 18
+                                                }}/>
+                                            <Button
+                                                type='transparent'
+                                                color='black'
+                                                icon={{
+                                                    component: <FaTimesCircle/>,
+                                                    size: 18
+                                                }}
+                                                onClick={() => this.clearSearchInput()}/>
                                         </div>
                                     }
                                 />
@@ -344,23 +373,8 @@ export class App extends Component {
 
                         }
                         bottom={
-                            <span>
-                                <Button
-                                    type='transparent'
-                                    color='black'
-                                    icon={{
-                                        component: <FaComments/>,
-                                        size: 18
-                                    }}/>
-                                <Button
-                                    type='transparent'
-                                    color='black'
-                                    icon={{
-                                        component: <FaSearch/>,
-                                        size: 18
-                                    }}/>
-                                <Button text="Count"></Button>
-                            </span>
+                            <Button type='transparent' color='black' disabled={true}
+                                    text={"Connection state: " + this.getSocketState()}/>
                         }/>
                 </div>
                 <div
@@ -378,6 +392,9 @@ export class App extends Component {
                         multiline={true}
                         // buttonsFloat='left'
                         onKeyPress={(e) => {
+                            if (e.charCode !== 13) {
+                                debouncedTyping();
+                            }
                             if (e.shiftKey && e.charCode === 13) {
                                 return true;
                             }
