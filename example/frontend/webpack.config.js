@@ -1,8 +1,8 @@
 const path = require("path");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
-const TerserWebpackPlugin = require("terser-webpack-plugin");
 const OptimizeCssAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+const { ESBuildPlugin, ESBuildMinifyPlugin } = require('esbuild-loader')
 
 module.exports = function(_env, argv) {
   const isProduction = argv.mode === "production";
@@ -18,18 +18,15 @@ module.exports = function(_env, argv) {
     },
     module: {
       rules: [
-        {
-          test: /\.jsx?$/,
-          exclude: /node_modules/,
-          use: {
-            loader: "babel-loader",
-            options: {
-              cacheDirectory: true,
-              cacheCompression: false,
-              envName: isProduction ? "production" : "development"
-            }
-          }
-        },
+          {
+         test: /\.js$/,
+         loader: 'esbuild-loader',
+         exclude: /node_modules/,
+         options: {
+           loader: 'jsx', // Remove this if you're not using JSX
+           target: 'es2015', // Syntax to compile to (see options below for possible values),
+         }
+       },
         {
           test: /\.css$/,
           use: [
@@ -69,6 +66,7 @@ module.exports = function(_env, argv) {
           filename: "css/[name].css",
           chunkFilename: "acss/[name].chunk.css"
         }),
+      new ESBuildPlugin(),
       new webpack.DefinePlugin({
         "process.env.NODE_ENV": JSON.stringify(
           isProduction ? "production" : "development"
@@ -78,21 +76,7 @@ module.exports = function(_env, argv) {
     optimization: {
       minimize: isProduction,
       minimizer: [
-        new TerserWebpackPlugin({
-          terserOptions: {
-            compress: {
-              comparisons: false
-            },
-            mangle: {
-              safari10: true
-            },
-            output: {
-              comments: false,
-              ascii_only: true
-            },
-            warnings: false
-          }
-        }),
+        new ESBuildMinifyPlugin({target: 'es2015', minify:isProduction}),
         new OptimizeCssAssetsPlugin()
       ],
       // splitChunks: {
