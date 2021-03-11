@@ -46,12 +46,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'tests.urls'
+ROOT_URLCONF = 'example.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'tests', 'templates'), ],
+        'DIRS': [os.path.join(BASE_DIR, 'example', 'templates'), ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -118,7 +118,7 @@ MEDIA_URL = '/media/'
 
 # look for static assets here
 STATICFILES_DIRS = [
-    join(BASE_DIR, 'tests', 'static'),
+    join(BASE_DIR, 'example', 'static'),
 ]
 
 STATIC_URL = '/static/'
@@ -128,7 +128,7 @@ LOGIN_REDIRECT_URL = '/admin'
 LOGIN_URL = '/admin/login/'
 ALLOWED_HOSTS = ['*']
 
-ASGI_APPLICATION = 'tests.example.routing.application'
+ASGI_APPLICATION = 'example.example.routing.application'
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
