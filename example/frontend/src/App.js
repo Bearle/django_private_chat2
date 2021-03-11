@@ -43,17 +43,32 @@ export class App extends Component {
             show: true,
             list: 'chat',
             messageList: [],
-            // socket: new ReconnectingWebSocket('ws://localhost:8000/chat_ws')
+            socket: new WebSocket('ws://' + window.location.host + '/chat_ws')
         };
 
         this.addMessage = this.addMessage.bind(this);
     }
 
     componentDidMount() {
+        let socket = this.state.socket;
+        socket.onopen = function (e) {
+            socket.send(JSON.stringify({"msg_type": 5}));
+            socket.send(JSON.stringify({"msg_type": "a"}));
+            socket.send(JSON.stringify({"msg_typee": 5}));
+            socket.send("");
+        }
+        socket.onmessage = function (e) {
+            console.log("websocket message: ")
+            console.log(e.data)
+        };
         // let socket = this.state.socket;
         // socket.addEventListener('open', () => {
         //     socket.send(JSON.stringify({"msg_type": 5}));
         // });
+        // socket.addEventListener('message', (msg) =>{
+        //     console.log("websocket message: ")
+        //     console.log(msg);
+        // })
     }
 
     UNSAFE_componentWillMount() {
