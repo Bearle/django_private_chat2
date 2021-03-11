@@ -18,7 +18,7 @@ import debounce from 'lodash.debounce';
 import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import { sayHelloFable, fetchMessages } from "../fs-src/App.fs.js"
+import { sayHelloFable, fetchMessages, sendIsTypingMessage } from "../fs-src/App.fs.js"
 import {
     format,
 } from 'timeago.js';
@@ -111,10 +111,6 @@ export class App extends Component {
         } else if (this.state.socket.readyState === 3) {
             return "Disconnected"
         }
-    }
-
-    sendIsTypingMessage(){
-        this.state.socket.send(JSON.stringify({"msg_type": MessageTypes.IsTyping}));
     }
     getRandomColor() {
         var letters = '0123456789ABCDEF';
@@ -337,7 +333,7 @@ export class App extends Component {
             arr.push(i);
 
         var chatSource = arr.map(x => this.random('chat'));
-        const debouncedTyping = debounce(() => this.sendIsTypingMessage(), 2000);
+        const debouncedTyping = debounce(() => sendIsTypingMessage(this.state.socket), 2000);
         return (
             <div className='container'>
                 <div
