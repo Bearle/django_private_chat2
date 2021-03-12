@@ -27,8 +27,6 @@ let hash64 (str: string) =
     let mutable h1 = hashFnv32a(str, true, None)
     h1 + hashFnv32a(h1 + str, true, None)
 
-let inline getDULowercaseName d = (string (d)).ToLower()
-
 let Identicon: obj = import "*" "identicon.js"
 
 let getPhotoString (inputString: string) (size: int option) =
@@ -45,8 +43,8 @@ type MessageModel =
    edited: DateTimeOffset
    read: bool
    file: string option
-   sender: int
-   recipient: int
+   sender: string
+   recipient: string
    sender_username: string
    out: bool }
   static member Decoder: Decoder<MessageModel> =
@@ -58,8 +56,8 @@ type MessageModel =
               edited = (get.Required.Field "edited" Decode.int64) |> DateTimeOffset.FromUnixTimeSeconds
               read = get.Required.Field "read" Decode.bool
               file = get.Optional.Field "file" Decode.string
-              sender = get.Required.Field "sender" Decode.int
-              recipient = get.Required.Field "recipient" Decode.int
+              sender = get.Required.Field "sender" Decode.string
+              recipient = get.Required.Field "recipient" Decode.string
               sender_username =  get.Required.Field "sender_username" Decode.string
               out = get.Required.Field "out" Decode.bool
           })
@@ -82,7 +80,7 @@ type DialogModel =
    id: int
    created: DateTimeOffset
    modified: DateTimeOffset
-   other_user_id: int
+   other_user_id: string
    unread_count: int
    username: string
   }
@@ -92,7 +90,7 @@ type DialogModel =
               id = get.Required.Field "id" Decode.int
               created = (get.Required.Field "created" Decode.int64) |> DateTimeOffset.FromUnixTimeSeconds
               modified = (get.Required.Field "modified" Decode.int64) |> DateTimeOffset.FromUnixTimeSeconds
-              other_user_id = get.Required.Field "other_user_id" Decode.int
+              other_user_id = get.Required.Field "other_user_id" Decode.string
               unread_count = get.Required.Field "unread_count" Decode.int
               username = get.Required.Field "username" Decode.string
           })
@@ -114,12 +112,16 @@ type DialogsResponse =
 // TODO: make it "of string * int"  etc. with special field indicating tag
 type ErrorTypes =
     | MessageParsingError = 1
-    | TextMessageBlank = 2
-    | TextMessageTooLong = 3
-    | InvalidMessageReadId = 4
+    | TextMessageInvalid = 2
+    | InvalidMessageReadId = 3
+    | InvalidUserPk = 4
 
 type ErrorDescription = ErrorTypes * string
 
+type MessageTypeTextMessage = {
+    text: string
+    user_pk: string
+}
 type MessageTypes =
     | WentOnline = 1
     | WentOffline = 2
@@ -128,6 +130,7 @@ type MessageTypes =
     | IsTyping = 5
     | MessageRead = 6
     | ErrorOccured = 7
+    | MessageIdCreated = 8
 
 [<StringEnum>]
 type MessageBoxPosition =
@@ -216,7 +219,7 @@ let fetchMessages() =
                 | _, true ->  MessageBoxStatus.Read
                 | true, false -> MessageBoxStatus.Sent
                 | false, false -> MessageBoxStatus.Received
-            let avatar = getPhotoString (string message.sender) (Some 150)
+            let avatar = getPhotoString message.sender (Some 150)
             let dialog_id = if message.out then message.recipient else message.sender
 
             {
@@ -227,7 +230,7 @@ let fetchMessages() =
                 status=status
                 avatar=avatar
                 date=message.sent
-                data = {dialog_id=string dialog_id}
+                data = {dialog_id=dialog_id}
             })
         |> Array.sortBy (fun x -> x.date)
         )
@@ -251,10 +254,9 @@ let fetchDialogs() =
     |> Promise.mapResult (fun x ->
         x.data
         |> Array.map (fun dialog ->
-            let stringId = string dialog.other_user_id
             {
-                id = stringId
-                avatar = getPhotoString stringId None
+                id = dialog.other_user_id
+                avatar = getPhotoString dialog.other_user_id None
                 avatarFlexible = true
                 statusColor = "lightgreen"
                 statusColorType = None
