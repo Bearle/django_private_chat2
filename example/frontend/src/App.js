@@ -1,5 +1,7 @@
 import React, {Component} from 'react';
 import 'react-chat-elements/dist/main.css';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer, toast } from 'react-toastify';
 import {
     MessageBox,
     ChatItem,
@@ -18,7 +20,7 @@ import debounce from 'lodash.debounce';
 import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import {sayHelloFable, fetchMessages, sendIsTypingMessage, hash64, getPhotoString} from "../fs-src/App.fs.js"
+import {fetchDialogs, fetchMessages, sendIsTypingMessage, hash64, getPhotoString} from "../fs-src/App.fs.js"
 import {
     format,
 } from 'timeago.js';
@@ -53,6 +55,7 @@ export class App extends Component {
         this.state = {
             socketConnectionState: 0,
             messageList: [],
+            dialogList: [],
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
         };
 
@@ -62,6 +65,16 @@ export class App extends Component {
     componentDidMount() {
         let messages = fetchMessages();
         messages.then((r) => console.log(r));
+        fetchDialogs().then((r) => {
+            if (r.tag === 0) {
+                console.log("Fetched dialogs:")
+                console.log(r.fields[0])
+                this.setState({dialogList:r.fields[0]})
+            } else {
+                console.log("Dialogs error:")
+                toast(r.fields[0])
+            }
+        })
         this.setState({socketConnectionState: this.state.socket.readyState});
         const that = this;
         let socket = this.state.socket;
@@ -321,7 +334,7 @@ export class App extends Component {
         for (var i = 0; i < 5; i++)
             arr.push(i);
 
-        var chatSource = arr.map(x => this.random('chat'));
+        // var chatSource = arr.map(x => this.random('chat'));
         const debouncedTyping = debounce(() => sendIsTypingMessage(this.state.socket), 2000);
         return (
             <div className='container'>
@@ -356,7 +369,7 @@ export class App extends Component {
                                     }
                                 />
 
-                                <ChatList dataSource={chatSource}/>
+                                <ChatList dataSource={this.state.dialogList}/>
                             </span>
 
                         }
@@ -367,6 +380,7 @@ export class App extends Component {
                 </div>
                 <div
                     className='right-panel'>
+                    <ToastContainer/>
                     <MessageList
                         className='message-list'
                         lockable={true}

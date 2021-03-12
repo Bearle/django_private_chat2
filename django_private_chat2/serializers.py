@@ -43,12 +43,14 @@ def serialize_message_model(m: MessageModel, user_id):
     return obj
 
 
-def serialize_dialog_model(m: DialogsModel):
+def serialize_dialog_model(m: DialogsModel, user_id):
+    other_user = m.user1.pk if m.user2.pk == user_id else m.user2.pk
+    unread_count = MessageModel.get_unread_count_for_dialog_with_user(sender=other_user,recipient=user_id)
     obj = {
         "id": m.id,
         "created": int(m.created.timestamp()),
         "modified": int(m.modified.timestamp()),
-        "user1": m.user1.pk,
-        "user2": m.user2.pk
+        "other_user_id": other_user,
+        "unread_count": unread_count
     }
     return obj

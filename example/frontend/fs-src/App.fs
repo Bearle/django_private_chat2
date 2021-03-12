@@ -75,6 +75,38 @@ type MessagesResponse =
                 }
             )
 
+type DialogModel =
+  {
+   id: int
+   created: DateTimeOffset
+   modified: DateTimeOffset
+   other_user_id: int
+   unread_count: int
+  }
+  static member Decoder: Decoder<DialogModel> =
+      Decode.object (fun get ->
+          {
+              id = get.Required.Field "id" Decode.int
+              created = (get.Required.Field "created" Decode.int64) |> DateTimeOffset.FromUnixTimeSeconds
+              modified = (get.Required.Field "modified" Decode.int64) |> DateTimeOffset.FromUnixTimeSeconds
+              other_user_id = get.Required.Field "other_user_id" Decode.int
+              unread_count = get.Required.Field "unread_count" Decode.int
+          })
+
+type DialogsResponse =
+    { page: int
+      pages: int
+      data: DialogModel array
+      }
+    static member Decoder : Decoder<DialogsResponse> =
+        Decode.object
+            (fun get ->
+                { page = get.Required.Field "page" Decode.int
+                  pages = get.Required.Field "pages" Decode.int
+                  data = get.Required.Field "data" (Decode.array DialogModel.Decoder)
+                }
+            )
+
 // TODO: make it "of string * int"  etc. with special field indicating tag
 type ErrorTypes =
     | MessageParsingError = 1
@@ -124,6 +156,19 @@ type MessageBox = {
     status: MessageBoxStatus
     avatar: string
 }
+
+type ChatItem = {
+    id: string
+    avatar: string
+    avatarFlexible: bool
+    statusColor: string
+    statusColorType: string option
+    alt: string
+    title: string
+    date: DateTimeOffset
+    subtitle: string
+    unread: int
+}
 type State = {
     socketConnectionState: int
     messageList: MessageBox array
@@ -141,6 +186,8 @@ let sendIsTypingMessage (sock: WebSocket) =
 
 let backendUrl = "http://127.0.0.1:8000"
 let messagesEndpoint = sprintf "%s/messages/" backendUrl
+let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
+
 let fetchMessages() = promise {
     let! resp = tryFetch messagesEndpoint []
     match resp with
@@ -151,4 +198,31 @@ let fetchMessages() = promise {
     | Result.Error e -> return Result.Error e.Message
 }
 
-let sayHelloFable() = "Hello Fable!"
+let fetchDialogs() =
+    promise {
+        let! resp = tryFetch dialogsEndpoint []
+
+        match resp with
+        | Result.Ok r ->
+            let! text = r.text()
+            let decoded = Decode.fromString DialogsResponse.Decoder text
+            return decoded
+        | Result.Error e -> return Result.Error e.Message
+    }
+    |> Promise.mapResult (fun x ->
+        x.data
+        |> Array.map (fun dialog ->
+            let stringId = string dialog.other_user_id
+            {
+                id = stringId
+                avatar = getPhotoString stringId None
+                avatarFlexible = true
+                statusColor = "lightgreen"
+                statusColorType = None
+                alt = "alt"
+                title = "title"
+                date = dialog.created
+                subtitle = "subtitle"
+                unread = dialog.unread_count
+            })
+    )

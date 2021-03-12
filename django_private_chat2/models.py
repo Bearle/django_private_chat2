@@ -100,6 +100,10 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
     read = models.BooleanField(verbose_name=_("Read"), default=False)
     all_objects = models.Manager()
 
+    @staticmethod
+    def get_unread_count_for_dialog_with_user(sender, recipient):
+        return MessageModel.objects.filter(sender_id=sender, recipient_id=recipient, read=False).count()
+
     def get_create_localtime(self):
         return localtime(self.created)
 

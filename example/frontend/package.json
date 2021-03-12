@@ -23,6 +23,7 @@
     "react-chat-elements": "^10.14.0",
     "react-dom": "^16.14.0",
     "react-icons": "^4.2.0",
+    "react-toastify": "^7.0.3",
     "reconnecting-websocket": "^4.4.0",
     "timeago.js": "^4.0.2"
   },
