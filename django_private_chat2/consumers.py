@@ -38,6 +38,7 @@ class MessageTypes(enum.IntEnum):
     IsTyping = 5
     MessageRead = 6
     ErrorOccured = 7
+    DialogCreated = 8
 
 
 @database_sync_to_async
@@ -123,13 +124,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     # first we send data to channel layer to not perform any synchronous operations,
                     # and only after we do sync DB stuff
                     await self.channel_layer.group_send(user_pk, {"type": "new_text_message",
-                                                                          "from": self.group_name, "text": text})
+                                                                  "from": self.group_name, "text": text})
 
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     if not recipient:
                         return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
                     else:
                         dialog_created: bool = await save_text_message(text, from_=self.user, to=recipient)
+                        if dialog_created:
+                            await self.channel_layer.group_send(user_pk,
+                                                                {"type": "new_dialog", "with": self.group_name})
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
@@ -166,6 +170,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         #         'message': message
         #     }
         # )
+
+    async def new_dialog(self, event):
+        await self.send(
+            text_data=json.dumps({
+                'msg_type': MessageTypes.DialogCreated,
+                'with': event['with']
+            }))
 
     async def new_text_message(self, event):
         await self.send(
