@@ -64,6 +64,17 @@ export class App extends Component {
     componentDidMount() {
         let messages = fetchMessages();
         messages.then((r) => console.log(r));
+        fetchMessages().then((r) => {
+            if (r.tag === 0) {
+                console.log("Fetched messages:")
+                console.log(r.fields[0])
+                this.setState({messageList: r.fields[0]})
+            } else {
+                console.log("Messages error:")
+                toast.error(r.fields[0])
+            }
+        })
+
         fetchDialogs().then((r) => {
             if (r.tag === 0) {
                 console.log("Fetched dialogs:")
@@ -72,13 +83,22 @@ export class App extends Component {
                 this.selectDialog(r.fields[0][0])
             } else {
                 console.log("Dialogs error:")
-                toast(r.fields[0])
+                toast.error(r.fields[0])
             }
         })
         this.setState({socketConnectionState: this.state.socket.readyState});
         const that = this;
         let socket = this.state.socket;
+        let toastOptions = {
+            autoClose: 1500,
+            hideProgressBar: true,
+            closeOnClick: false,
+            pauseOnHover: true,
+            draggable: false,
+        };
+
         socket.onopen = function (e) {
+            toast.success("Connected!", toastOptions)
             that.setState({socketConnectionState: socket.readyState});
         }
         socket.onmessage = function (e) {
@@ -87,6 +107,7 @@ export class App extends Component {
             console.log(e.data)
         };
         socket.onclose = function (e) {
+            toast.info("Disconnected...", toastOptions)
             that.setState({socketConnectionState: socket.readyState});
             console.log("websocket closed")
         }
@@ -377,7 +398,8 @@ export class App extends Component {
                                     }
                                 />
 
-                                <ChatList onClick={(item, i, e) => this.selectDialog(item)} dataSource={this.state.dialogList}/>
+                                <ChatList onClick={(item, i, e) => this.selectDialog(item)}
+                                          dataSource={this.state.dialogList}/>
                             </span>
 
                         }

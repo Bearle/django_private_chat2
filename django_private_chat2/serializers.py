@@ -30,6 +30,7 @@ def serialize_text_message(m: TextMessage, datetime_formatter: Callable[[datetim
 
 def serialize_message_model(m: MessageModel, user_id):
     sender_pk = m.sender.pk
+    is_out = sender_pk == user_id
     obj = {
         "id": m.id,
         "text": m.text,
@@ -39,7 +40,8 @@ def serialize_message_model(m: MessageModel, user_id):
         "file": m.file.path if m.file else None,
         "sender": sender_pk,
         "recipient": m.recipient.pk,
-        "out": sender_pk == user_id
+        "out": is_out,
+        "sender_username": m.sender.get_username()
     }
     return obj
 

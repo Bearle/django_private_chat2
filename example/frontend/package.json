@@ -32,7 +32,7 @@
     "start:fable": "dotnet fable watch fs-src",
     "start": "dotnet fable watch fs-src --run webpack serve --mode development --config webpack.config.js --progress --profile --content-base src/",
     "build": "dotnet fable fs-src --run webpack --mode production",
-    "build:jsonly": "webpack --mode production"
+    "build:jsonly": "webpack --mode production --watch"
   },
   "browserslist": {
     "production": [

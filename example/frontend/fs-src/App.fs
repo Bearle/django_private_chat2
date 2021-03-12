@@ -47,6 +47,7 @@ type MessageModel =
    file: string option
    sender: int
    recipient: int
+   sender_username: string
    out: bool }
   static member Decoder: Decoder<MessageModel> =
       Decode.object (fun get ->
@@ -59,6 +60,7 @@ type MessageModel =
               file = get.Optional.Field "file" Decode.string
               sender = get.Required.Field "sender" Decode.int
               recipient = get.Required.Field "recipient" Decode.int
+              sender_username =  get.Required.Field "sender_username" Decode.string
               out = get.Required.Field "out" Decode.bool
           })
 type MessagesResponse =
@@ -157,6 +159,7 @@ type MessageBox = {
     title: string
     status: MessageBoxStatus
     avatar: string
+    date: DateTimeOffset
 }
 
 type ChatItem = {
@@ -190,15 +193,38 @@ let backendUrl = "http://127.0.0.1:8000"
 let messagesEndpoint = sprintf "%s/messages/" backendUrl
 let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
 
-let fetchMessages() = promise {
-    let! resp = tryFetch messagesEndpoint []
-    match resp with
-    | Result.Ok r ->
-        let! text = r.text()
-        let decoded = Decode.fromString MessagesResponse.Decoder text
-        return decoded
-    | Result.Error e -> return Result.Error e.Message
-}
+let fetchMessages() =
+    promise {
+        let! resp = tryFetch messagesEndpoint []
+        match resp with
+        | Result.Ok r ->
+            let! text = r.text()
+            let decoded = Decode.fromString MessagesResponse.Decoder text
+            return decoded
+        | Result.Error e -> return Result.Error e.Message
+    }
+    |> Promise.mapResult (fun x ->
+        x.data
+        |> Array.map (fun message ->
+            let t = match message.file with |None -> MessageBoxType.Text |Some _ -> MessageBoxType.File
+            let status =
+                match message.out, message.read with
+                | _, true ->  MessageBoxStatus.Read
+                | true, false -> MessageBoxStatus.Sent
+                | false, false -> MessageBoxStatus.Received
+            let avatar = getPhotoString (string message.sender) (Some 150)
+
+            {
+                position=if message.out then MessageBoxPosition.Right else MessageBoxPosition.Left
+                ``type``=t
+                text = message.text
+                title=message.sender_username
+                status=status
+                avatar=avatar
+                date=message.sent
+            })
+        |> Array.sortBy (fun x -> x.date)
+        )
 
 let fetchDialogs() =
     promise {
