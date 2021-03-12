@@ -34,7 +34,8 @@ class MessagesModelList(LoginRequiredMixin, ListView):
         return qs.order_by('-created')
 
     def render_to_response(self, context, **response_kwargs):
-        data = [serialize_message_model(i) for i in context['object_list']]
+        user_pk = self.request.user.pk
+        data = [serialize_message_model(i, user_pk) for i in context['object_list']]
         page: Page = context.pop('page_obj')
         paginator: Paginator = context.pop('paginator')
         return_data = {
