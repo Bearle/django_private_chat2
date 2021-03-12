@@ -152,6 +152,9 @@ type MessageBoxType =
     | Meeting
     | Audio
 
+type MessageBoxData = {
+    dialog_id: string
+}
 type MessageBox = {
     position: MessageBoxPosition
     ``type``: MessageBoxType
@@ -160,6 +163,7 @@ type MessageBox = {
     status: MessageBoxStatus
     avatar: string
     date: DateTimeOffset
+    data: MessageBoxData
 }
 
 type ChatItem = {
@@ -213,6 +217,7 @@ let fetchMessages() =
                 | true, false -> MessageBoxStatus.Sent
                 | false, false -> MessageBoxStatus.Received
             let avatar = getPhotoString (string message.sender) (Some 150)
+            let dialog_id = if message.out then message.recipient else message.sender
 
             {
                 position=if message.out then MessageBoxPosition.Right else MessageBoxPosition.Left
@@ -222,9 +227,15 @@ let fetchMessages() =
                 status=status
                 avatar=avatar
                 date=message.sent
+                data = {dialog_id=string dialog_id}
             })
         |> Array.sortBy (fun x -> x.date)
         )
+let filterMessagesForDialog (d: ChatItem option) (messages: MessageBox [])=
+    match d with
+    | Some dialog -> messages |> Array.filter (fun m -> m.data.dialog_id = dialog.id)
+    | None -> Array.empty
+
 
 let fetchDialogs() =
     promise {

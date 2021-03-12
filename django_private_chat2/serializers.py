@@ -31,6 +31,8 @@ def serialize_text_message(m: TextMessage, datetime_formatter: Callable[[datetim
 def serialize_message_model(m: MessageModel, user_id):
     sender_pk = m.sender.pk
     is_out = sender_pk == user_id
+    #TODO: add forwards
+    #TODO: add replies
     obj = {
         "id": m.id,
         "text": m.text,
@@ -49,6 +51,7 @@ def serialize_message_model(m: MessageModel, user_id):
 def serialize_dialog_model(m: DialogsModel, user_id):
     other_user: AbstractBaseUser = m.user1 if m.user2.pk == user_id else m.user2
     unread_count = MessageModel.get_unread_count_for_dialog_with_user(sender=other_user.pk,recipient=user_id)
+    # TODO: add last message
     obj = {
         "id": m.id,
         "created": int(m.created.timestamp()),

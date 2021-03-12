@@ -20,7 +20,7 @@ import debounce from 'lodash.debounce';
 import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import {fetchDialogs, fetchMessages, sendIsTypingMessage, hash64, getPhotoString} from "../fs-src/App.fs.js"
+import {filterMessagesForDialog, fetchDialogs, fetchMessages, sendIsTypingMessage, hash64, getPhotoString} from "../fs-src/App.fs.js"
 import {
     format,
 } from 'timeago.js';
@@ -62,8 +62,6 @@ export class App extends Component {
     }
 
     componentDidMount() {
-        let messages = fetchMessages();
-        messages.then((r) => console.log(r));
         fetchMessages().then((r) => {
             if (r.tag === 0) {
                 console.log("Fetched messages:")
@@ -111,19 +109,6 @@ export class App extends Component {
             that.setState({socketConnectionState: socket.readyState});
             console.log("websocket closed")
         }
-
-        // let socket = this.state.socket;
-        // socket.addEventListener('open', () => {
-        //     socket.send(JSON.stringify({"msg_type": 5}));
-        // });
-        // socket.addEventListener('message', (msg) =>{
-        //     console.log("websocket message: ")
-        //     console.log(msg);
-        // })
-    }
-
-    UNSAFE_componentWillMount() {
-        this.addMessage(7)
     }
 
     selectDialog(item) {
@@ -415,7 +400,7 @@ export class App extends Component {
                         className='message-list'
                         lockable={true}
                         downButtonBadge={10}
-                        dataSource={this.state.messageList}/>
+                        dataSource={filterMessagesForDialog(this.state.selectedDialog, this.state.messageList)}/>
 
                     <Input
                         placeholder="Type here to send a message."
