@@ -4,8 +4,8 @@ from django.db import models
 from django.conf import settings
 from django.utils.translation import ugettext as _
 from django.utils.timezone import localtime
-from model_utils.models import TimeStampedModel, SoftDeletableModel
-from django.contrib.auth.models import AbstractUser
+from model_utils.models import TimeStampedModel, SoftDeletableModel, SoftDeletableManager
+from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth import get_user_model
 import dataclasses
 import uuid
@@ -13,7 +13,7 @@ import datetime
 from typing import Optional, Any
 from django.db.models import Q
 
-UserModel: AbstractUser = get_user_model()
+UserModel: AbstractBaseUser = get_user_model()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -72,20 +72,33 @@ class DialogsModel(TimeStampedModel):
         return _("Dialog between ") + f"{self.user1.pk}, {self.user2.pk}"
 
     @staticmethod
-    def dialog_exists(u1: AbstractUser, u2: AbstractUser) -> Optional[Any]:
+    def dialog_exists(u1: AbstractBaseUser, u2: AbstractBaseUser) -> Optional[Any]:
         return DialogsModel.objects.filter(Q(user1=u1, user2=u2) | Q(user1=u2, user2=u1)).first()
 
     @staticmethod
-    def create_if_not_exists(u1: AbstractUser, u2: AbstractUser):
+    def create_if_not_exists(u1: AbstractBaseUser, u2: AbstractBaseUser):
         res = DialogsModel.dialog_exists(u1, u2)
         if not res:
-            return DialogsModel.objects.create(user1=u1, user2=u2)
+            DialogsModel.objects.create(user1=u1, user2=u2)
+            return True
         else:
-            return res
+            return False
 
     @staticmethod
-    def get_dialogs_for_user(user: AbstractUser):
+    def get_dialogs_for_user(user: AbstractBaseUser):
         return DialogsModel.objects.filter(Q(user1=user) | Q(user2=user)).values_list('user1__pk', 'user2__pk')
+
+
+class MessageModelManager(SoftDeletableManager):
+    def create(self, **kwargs):
+        """
+        Create a new object with the given kwargs, saving it to the database
+        and returning the created object.
+        """
+        obj = self.model(**kwargs)
+        self._for_write = True
+        dialog_created = obj.save(force_insert=True, using=self.db)
+        return dialog_created
 
 
 class MessageModel(TimeStampedModel, SoftDeletableModel):
@@ -99,6 +112,7 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
 
     read = models.BooleanField(verbose_name=_("Read"), default=False)
     all_objects = models.Manager()
+    objects = MessageModelManager(_emit_deprecation_warnings=True)
 
     @staticmethod
     def get_unread_count_for_dialog_with_user(sender, recipient):
@@ -112,7 +126,7 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
 
     def save(self, *args, **kwargs):
         super(MessageModel, self).save(*args, **kwargs)
-        dialog = DialogsModel.create_if_not_exists(self.sender, self.recipient)
+        return DialogsModel.create_if_not_exists(self.sender, self.recipient)
 
     class Meta:
         ordering = ('-created',)

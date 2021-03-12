@@ -1,27 +1,34 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import InMemoryChannelLayer
 from channels.db import database_sync_to_async
-from .models import MessageModel, DialogsModel
-from typing import List, Set, Awaitable, Optional, Dict, Tuple
-from django.contrib.auth.models import AbstractUser
+from .models import MessageModel, DialogsModel, UserModel
+from typing import List, Set, Awaitable, Optional, Dict, Tuple, TypedDict
+from django.contrib.auth.models import AbstractBaseUser
+from django.conf import settings
 import logging
 import json
 import enum
 
 logger = logging.getLogger('django_private_chat2.consumers')
+TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 
 
 class ErrorTypes(enum.IntEnum):
     MessageParsingError = 1
-    TextMessageBlank = 2
-    TextMessageTooLong = 3
-    InvalidMessageReadId = 4
+    TextMessageInvalid = 2
+    InvalidMessageReadId = 3
+    InvalidUserPk = 4
 
 
 ErrorDescription = Tuple[ErrorTypes, str]
 
 
 # TODO: add tx_id to distinguish errors for different transactions
+
+class MessageTypeTextMessage(TypedDict):
+    text: str
+    user_pk: str
+
 
 class MessageTypes(enum.IntEnum):
     WentOnline = 1
@@ -34,9 +41,22 @@ class MessageTypes(enum.IntEnum):
 
 
 @database_sync_to_async
-def get_groups_to_add(u: AbstractUser) -> Set[int]:
+def get_groups_to_add(u: AbstractBaseUser) -> Set[int]:
     l = DialogsModel.get_dialogs_for_user(u)
     return set(list(sum(l, ())))
+
+
+@database_sync_to_async
+def get_user_by_pk(pk: str) -> Optional[AbstractBaseUser]:
+    return UserModel.objects.filter(pk=pk).first()
+
+
+@database_sync_to_async
+def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> bool:
+    """
+    @rtype: bool - indicates whether a new dialog was created
+    """
+    return MessageModel.objects.create(text=text, sender=from_, recipient=to)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -47,7 +67,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # 3. Add the user to all groups where he has dialogs
         # Call self.scope["session"].save() on any changes to User
         if self.scope["user"].is_authenticated:
-            self.user: AbstractUser = self.scope['user']
+            self.user: AbstractBaseUser = self.scope['user']
             self.group_name: str = str(self.user.pk)
             logger.info(f"Sending 'user_went_online' for user {self.user.pk}")
             await self.channel_layer.group_send(self.group_name, {"type": "user_went_online", "user_pk": self.user.pk})
@@ -56,9 +76,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"User {self.user.pk} connected, "
                         f"adding channel {self.channel_name} to {dialogs} dialog groups")
             for d in dialogs:  # type: int
-                s = str(d)
-                if s != self.group_name:
-                    await self.channel_layer.group_add(s, self.channel_name)
+                # if str(d) != self.group_name:
+                await self.channel_layer.group_add(str(d), self.channel_name)
         else:
             await self.close(code=4001)
 
@@ -74,7 +93,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             for d in dialogs:
                 await self.channel_layer.group_discard(str(d), self.channel_name)
 
-    async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]):
+    async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
         logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
         if msg_type == MessageTypes.WentOffline \
             or msg_type == MessageTypes.WentOnline \
@@ -83,6 +102,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
         else:
             if msg_type == MessageTypes.IsTyping:
                 await self.channel_layer.group_send(self.group_name, {"type": "is_typing", "user_pk": self.user.pk})
+                return None
+            elif msg_type == MessageTypes.TextMessage:
+                data: MessageTypeTextMessage
+                if 'text' not in data:
+                    return ErrorTypes.MessageParsingError, "'text' not present in data"
+                elif 'user_pk' not in data:
+                    return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
+                elif data['text'] == '':
+                    return ErrorTypes.TextMessageInvalid, "'text' should not be blank"
+                elif len(data['text']) > TEXT_MAX_LENGTH:
+                    return ErrorTypes.TextMessageInvalid, "'text' is too long"
+                elif not isinstance(data['text'], str):
+                    return ErrorTypes.TextMessageInvalid, "'text' should be a string"
+                elif not isinstance(data['user_pk'], str):
+                    return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
+                else:
+                    text = data['text']
+                    user_pk = data['user_pk']
+                    # first we send data to channel layer to not perform any synchronous operations,
+                    # and only after we do sync DB stuff
+                    await self.channel_layer.group_send(user_pk, {"type": "new_text_message",
+                                                                          "from": self.group_name, "text": text})
+
+                    recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
+                    if not recipient:
+                        return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
+                    else:
+                        dialog_created: bool = await save_text_message(text, from_=self.user, to=recipient)
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
@@ -99,7 +146,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 else:
                     try:
                         msg_type_case: MessageTypes = MessageTypes(msg_type)
-                        await self.handle_received_message(msg_type_case, text_data_json)
+                        error = await self.handle_received_message(msg_type_case, text_data_json)
                     except ValueError as e:
                         error = (ErrorTypes.MessageParsingError, f"msg_type decoding error - {e}")
         except json.JSONDecodeError as e:
@@ -119,6 +166,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         #         'message': message
         #     }
         # )
+
+    async def new_text_message(self, event):
+        await self.send(
+            text_data=json.dumps({
+                'msg_type': MessageTypes.TextMessage,
+                'from': event['from'],
+                'text': event['text']
+            }))
 
     async def is_typing(self, event):
         await self.send(
