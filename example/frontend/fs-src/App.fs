@@ -118,10 +118,23 @@ type ErrorTypes =
 
 type ErrorDescription = ErrorTypes * string
 
-type MessageTypeTextMessage = {
+type MessageTypeTextMessage =
+    {
+    random_id: int
     text: string
-    user_pk: string
-}
+    sender: string
+    receiver: string
+    sender_username: string
+    }
+    static member Decoder: Decoder<MessageTypeTextMessage> =
+      Decode.object (fun get ->
+          {
+              random_id=get.Required.Field "random_id" Decode.int
+              text = get.Required.Field "text" Decode.string
+              sender = get.Required.Field "sender" Decode.string
+              receiver = get.Required.Field "receiver" Decode.string
+              sender_username = get.Required.Field "sender_username" Decode.string
+          })
 type MessageTypes =
     | WentOnline = 1
     | WentOffline = 2
@@ -157,6 +170,7 @@ type MessageBoxType =
 
 type MessageBoxData = {
     dialog_id: string
+    message_id: int
 }
 type MessageBox = {
     position: MessageBoxPosition
@@ -167,7 +181,7 @@ type MessageBox = {
     avatar: string
     date: DateTimeOffset
     data: MessageBoxData
-}
+} with member this.HasDbId() = this.data.message_id > 0
 
 type ChatItem = {
     id: string
@@ -191,7 +205,32 @@ let msgTypeEncoder (t:MessageTypes) data =
     Encode.object d |> Encode.toString 0
 
 
+let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage) =
+    let avatar = getPhotoString message.sender (Some 150)
+    {
+        position=MessageBoxPosition.Left
+        ``type``=MessageBoxType.Text
+        text = message.text
+        title=message.sender_username
+        status=MessageBoxStatus.Waiting
+        avatar=avatar
+        date=(DateTimeOffset(JS.Constructors.Date.Create()))
+        data = {dialog_id=message.sender;message_id=message.random_id}
+    }
+
+let handleIncomingWebsocketMessage (message: string) =
+    ()
+
+
 //let decodeError s  = Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string s ErrorDescription
+
+let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) =
+    printfn "Sending text message: '%A', user_pk:'%A' " text user_pk
+    let data = [
+        "text", Encode.string text
+        "user_pk", Encode.string user_pk
+    ]
+    sock.send (msgTypeEncoder MessageTypes.TextMessage data)
 
 let sendIsTypingMessage (sock: WebSocket) =
     sock.send (msgTypeEncoder MessageTypes.IsTyping [])
@@ -230,7 +269,7 @@ let fetchMessages() =
                 status=status
                 avatar=avatar
                 date=message.sent
-                data = {dialog_id=dialog_id}
+                data = {dialog_id=dialog_id;message_id=message.id}
             })
         |> Array.sortBy (fun x -> x.date)
         )

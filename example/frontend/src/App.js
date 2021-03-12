@@ -20,7 +20,15 @@ import debounce from 'lodash.debounce';
 import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import {filterMessagesForDialog, fetchDialogs, fetchMessages, sendIsTypingMessage, hash64, getPhotoString} from "../fs-src/App.fs.js"
+import {
+    sendOutgoingTextMessage,
+    filterMessagesForDialog,
+    fetchDialogs,
+    fetchMessages,
+    sendIsTypingMessage,
+    hash64,
+    getPhotoString
+} from "../fs-src/App.fs.js"
 import {
     format,
 } from 'timeago.js';
@@ -57,8 +65,8 @@ export class App extends Component {
             selectedDialog: null,
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
         };
-
-        this.addMessage = this.addMessage.bind(this);
+        //some js magic
+        this.performSendingMessage = this.performSendingMessage.bind(this);
     }
 
     componentDidMount() {
@@ -335,12 +343,20 @@ export class App extends Component {
         }
     }
 
-    addMessage(mtype) {
-        var list = this.state.messageList;
-        list.push(this.random('message', mtype));
-        this.setState({
-            messageList: list,
-        });
+    // addMessage(mtype) {
+    //     var list = this.state.messageList;
+    //     list.push(this.random('message', mtype));
+    //     this.setState({
+    //         messageList: list,
+    //     });
+    // }
+    performSendingMessage() {
+        if (this.state.selectedDialog) {
+            let text = this.textInput.input.value;
+            let user_pk = this.state.selectedDialog.id;
+            this.clearTextInput();
+            sendOutgoingTextMessage(this.state.socket, text, user_pk);
+        }
     }
 
     render() {
@@ -416,8 +432,7 @@ export class App extends Component {
                                 return true;
                             }
                             if (e.charCode === 13) {
-                                this.clearTextInput();
-                                this.addMessage();
+                                this.performSendingMessage()
                                 e.preventDefault();
                                 return false;
                             }
@@ -425,7 +440,7 @@ export class App extends Component {
                         rightButtons={
                             <Button
                                 text='Send'
-                                onClick={() => this.addMessage()}/>
+                                onClick={() => this.performSendingMessage()}/>
                         }/>
                 </div>
             </div>

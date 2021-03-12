@@ -43,7 +43,7 @@ class MessageTypes(enum.IntEnum):
 
 
 def generate_random_id() -> int:
-    return random.randrange(-9223372036854775808, 9223372036854775807)
+    return random.randrange(-9223372036854775808, 0)
 
 
 @database_sync_to_async
@@ -138,11 +138,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     await self.channel_layer.group_send(user_pk, {"type": "new_text_message",
                                                                   "random_id": rid,
                                                                   "text": text,
-                                                                  "read": False,
                                                                   "sender": self.group_name,
                                                                   "receiver": user_pk,
-                                                                  "sender_username": self.sender_username,
-                                                                  "from": self.group_name})
+                                                                  "sender_username": self.sender_username})
 
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     if not recipient:
@@ -203,11 +201,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'msg_type': MessageTypes.TextMessage,
                 "random_id": event['random_id'],
                 "text": event['text'],
-                "read": event['read'],
                 "sender": event['sender'],
                 "receiver": event['receiver'],
                 "sender_username": event['sender_username'],
-                "from": event['from']
             }))
 
     async def is_typing(self, event):
