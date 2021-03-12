@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 import dataclasses
 import uuid
 import datetime
-from typing import Optional
+from typing import Optional, Any
 from django.db.models import Q
 
 UserModel: AbstractUser = get_user_model()
@@ -54,6 +54,37 @@ def user_directory_path(instance, filename):
     return f"user_{instance.sender.pk}/{filename}"
 
 
+class DialogsModel(TimeStampedModel):
+    id = models.BigAutoField(primary_key=True, verbose_name=_("Id"))
+    user1 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_("User1"),
+                              related_name="+", db_index=True)
+    user2 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_("User2"),
+                              related_name="+", db_index=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user1', 'user2'], name='Unique dialog')
+        ]
+        verbose_name = _("Dialog")
+        verbose_name_plural = _("Dialogs")
+
+    @staticmethod
+    def dialog_exists(u1: AbstractUser, u2: AbstractUser) -> Optional[Any]:
+        return DialogsModel.objects.filter(Q(user1=u1, user2=u2) | Q(user1=u2, user2=u1)).first()
+
+    @staticmethod
+    def create_if_not_exists(u1: AbstractUser, u2: AbstractUser):
+        res = DialogsModel.dialog_exists(u1, u2)
+        if not res:
+            return DialogsModel.objects.create(user1=u1, user2=u2)
+        else:
+            return res
+
+    @staticmethod
+    def get_dialogs_for_user(user: AbstractUser):
+        return DialogsModel.objects.filter(Q(user1=user) | Q(user2=user)).values_list('user1__pk', 'user2__pk')
+
+
 class MessageModel(TimeStampedModel, SoftDeletableModel):
     id = models.BigAutoField(primary_key=True, verbose_name=_("Id"))
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_("Author"),
@@ -72,15 +103,14 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
     def __str__(self):
         return str(self.pk)
 
+    def save(self, *args, **kwargs):
+        super(MessageModel, self).save(*args, **kwargs)
+        dialog = DialogsModel.create_if_not_exists(self.sender, self.recipient)
+
     class Meta:
         ordering = ('-created',)
         verbose_name = _("Message")
         verbose_name_plural = _("Messages")
-
-    @staticmethod
-    def get_dialogs_for_user(user: AbstractUser):
-        qs = MessageModel.objects.filter(Q(recipient=user) | Q(sender=user)).order_by().values_list("sender_id", "recipient_id").distinct()
-        return qs
 
 # TODO:
 # Possible features - update with pts

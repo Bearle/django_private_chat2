@@ -1,7 +1,7 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import InMemoryChannelLayer
 from channels.db import database_sync_to_async
-from .models import MessageModel
+from .models import MessageModel, DialogsModel
 from typing import List, Set, Awaitable, Optional, Dict, Tuple
 from django.contrib.auth.models import AbstractUser
 import logging
@@ -35,7 +35,7 @@ class MessageTypes(enum.IntEnum):
 
 @database_sync_to_async
 def get_groups_to_add(u: AbstractUser) -> Set[int]:
-    l = MessageModel.get_dialogs_for_user(u)
+    l = DialogsModel.get_dialogs_for_user(u)
     return set(list(sum(l, ())))
 
 
