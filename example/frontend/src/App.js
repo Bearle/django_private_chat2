@@ -18,7 +18,7 @@ import debounce from 'lodash.debounce';
 import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import { sayHelloFable, fetchMessages, sendIsTypingMessage } from "../fs-src/App.fs.js"
+import {sayHelloFable, fetchMessages, sendIsTypingMessage, hash64, getPhotoString} from "../fs-src/App.fs.js"
 import {
     format,
 } from 'timeago.js';
@@ -26,19 +26,12 @@ import {
 import loremIpsum from 'lorem-ipsum';
 import Identicon from 'identicon.js';
 
-const MessageTypes = Object.freeze({
-    WentOnline: 1,
-    WentOffline: 2,
-    TextMessage: 3,
-    FileMessage: 4,
-    IsTyping: 5,
-    MessageRead: 6,
-    ErrorOccured: 7
-})
 export class App extends Component {
 
     constructor(props) {
         super(props);
+        console.log(hash64("1"));
+        console.log(getPhotoString("1"))
         // Refs
         this.textInput = null;
         this.setTextInputRef = element => {
@@ -58,8 +51,6 @@ export class App extends Component {
 
 
         this.state = {
-            show: true,
-            list: 'chat',
             socketConnectionState: 0,
             messageList: [],
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
@@ -112,6 +103,7 @@ export class App extends Component {
             return "Disconnected"
         }
     }
+
     getRandomColor() {
         var letters = '0123456789ABCDEF';
         var color = '#';
@@ -126,10 +118,7 @@ export class App extends Component {
     }
 
     photo(size) {
-        return new Identicon(String(Math.random()) + String(Math.random()), {
-            margin: 0,
-            size: size || 20,
-        }).toString()
+        return getPhotoString(String(Math.random()) + String(Math.random()), size);
     }
 
     random(type, mtype) {
@@ -177,7 +166,7 @@ export class App extends Component {
                     forwarded: true,
                     replyButton: true,
                     reply: this.token() >= 1 ? ({
-                        photoURL: this.token() >= 1 ? `data:image/png;base64,${this.photo(150)}` : null,
+                        photoURL: this.token() >= 1 ? `${this.photo(150)}` : null,
                         title: loremIpsum({count: 2, units: 'words'}),
                         titleColor: this.getRandomColor(),
                         message: loremIpsum({count: 1, units: 'sentences'}),
@@ -193,7 +182,7 @@ export class App extends Component {
                         })),
                         dataSource: Array(this.token() + 5).fill(1).map(x => ({
                             id: String(Math.random()),
-                            avatar: `data:image/png;base64,${this.photo()}`,
+                            avatar: `${this.photo()}`,
                             message: loremIpsum({count: 1, units: 'sentences'}),
                             title: loremIpsum({count: 2, units: 'words'}),
                             avatarFlexible: true,
@@ -201,13 +190,13 @@ export class App extends Component {
                             event: {
                                 title: loremIpsum({count: 2, units: 'words'}),
                                 avatars: Array(this.token() + 2).fill(1).map(x => ({
-                                    src: `data:image/png;base64,${this.photo()}`,
+                                    src: `${this.photo()}`,
                                     title: "react, rce"
                                 })),
                                 avatarsLimit: 5,
                             },
                             record: {
-                                avatar: `data:image/png;base64,${this.photo()}`,
+                                avatar: `${this.photo()}`,
                                 title: loremIpsum({count: 1, units: 'words'}),
                                 savedBy: 'Kaydeden: ' + loremIpsum({count: 2, units: 'words'}),
                                 time: new Date().toLocaleString(),
@@ -226,7 +215,7 @@ export class App extends Component {
                     data: {
                         videoURL: this.token() >= 1 ? 'https://www.w3schools.com/html/mov_bbb.mp4' : 'http://www.exit109.com/~dnn/clips/RW20seconds_1.mp4',
                         audioURL: 'https://www.w3schools.com/html/horse.mp3',
-                        uri: `data:image/png;base64,${this.photo(150)}`,
+                        uri: `${this.photo(150)}`,
                         status: {
                             click: true,
                             loading: 0.5,
@@ -247,12 +236,12 @@ export class App extends Component {
                     onReplyMessageClick: () => {
                         console.log('onReplyMessageClick');
                     },
-                    avatar: `data:image/png;base64,${this.photo()}`,
+                    avatar: `${this.photo()}`,
                 };
             case 'chat':
                 return {
                     id: String(Math.random()),
-                    avatar: `data:image/png;base64,${this.photo()}`,
+                    avatar: `${this.photo()}`,
                     avatarFlexible: true,
                     statusColor: 'lightgreen',
                     statusColorType: parseInt(Math.random() * 100 % 2) === 1 ? 'encircle' : undefined,
@@ -307,12 +296,12 @@ export class App extends Component {
             case 'meeting':
                 return {
                     id: String(Math.random()),
-                    lazyLoadingImage: `data:image/png;base64,${this.photo()}`,
+                    lazyLoadingImage: `${this.photo()}`,
                     avatarFlexible: true,
                     subject: loremIpsum({count: 1, units: 'sentences'}),
                     date: new Date(),
                     avatars: Array(this.token() + 2).fill(1).map(x => ({
-                        src: `data:image/png;base64,${this.photo()}`,
+                        src: `${this.photo()}`,
                     })),
                     closable: true,
                 };
