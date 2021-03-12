@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import 'react-chat-elements/dist/main.css';
 import 'react-toastify/dist/ReactToastify.css';
-import { ToastContainer, toast } from 'react-toastify';
+import {ToastContainer, toast} from 'react-toastify';
 import {
     MessageBox,
     ChatItem,
@@ -32,8 +32,6 @@ export class App extends Component {
 
     constructor(props) {
         super(props);
-        console.log(hash64("1"));
-        console.log(getPhotoString("1"))
         // Refs
         this.textInput = null;
         this.setTextInputRef = element => {
@@ -56,6 +54,7 @@ export class App extends Component {
             socketConnectionState: 0,
             messageList: [],
             dialogList: [],
+            selectedDialog: null,
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
         };
 
@@ -69,7 +68,8 @@ export class App extends Component {
             if (r.tag === 0) {
                 console.log("Fetched dialogs:")
                 console.log(r.fields[0])
-                this.setState({dialogList:r.fields[0]})
+                this.setState({dialogList: r.fields[0]})
+                this.selectDialog(r.fields[0][0])
             } else {
                 console.log("Dialogs error:")
                 toast(r.fields[0])
@@ -103,6 +103,14 @@ export class App extends Component {
 
     UNSAFE_componentWillMount() {
         this.addMessage(7)
+    }
+
+    selectDialog(item) {
+        this.setState({selectedDialog: item})
+        this.setState(prevState => ({
+            dialogList: prevState.dialogList.map(el => (el.id === item.id ?
+                {...el, statusColorType: 'encircle'} : {...el, statusColorType: undefined}))
+        }))
     }
 
     getSocketState() {
@@ -369,7 +377,7 @@ export class App extends Component {
                                     }
                                 />
 
-                                <ChatList dataSource={this.state.dialogList}/>
+                                <ChatList onClick={(item, i, e) => this.selectDialog(item)} dataSource={this.state.dialogList}/>
                             </span>
 
                         }
