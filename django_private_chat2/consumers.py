@@ -8,6 +8,7 @@ from django.conf import settings
 import logging
 import json
 import enum
+import random
 
 logger = logging.getLogger('django_private_chat2.consumers')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
@@ -38,7 +39,11 @@ class MessageTypes(enum.IntEnum):
     IsTyping = 5
     MessageRead = 6
     ErrorOccured = 7
-    DialogCreated = 8
+    MessageIdCreated = 8
+
+
+def generate_random_id() -> int:
+    return random.randrange(-9223372036854775808, 9223372036854775807)
 
 
 @database_sync_to_async
@@ -53,7 +58,7 @@ def get_user_by_pk(pk: str) -> Optional[AbstractBaseUser]:
 
 
 @database_sync_to_async
-def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> bool:
+def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> MessageModel:
     """
     @rtype: bool - indicates whether a new dialog was created
     """
@@ -70,6 +75,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if self.scope["user"].is_authenticated:
             self.user: AbstractBaseUser = self.scope['user']
             self.group_name: str = str(self.user.pk)
+            self.sender_username: str = self.user.get_username()
             logger.info(f"Sending 'user_went_online' for user {self.user.pk}")
             await self.channel_layer.group_send(self.group_name, {"type": "user_went_online", "user_pk": self.user.pk})
             await self.accept()
@@ -123,17 +129,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     user_pk = data['user_pk']
                     # first we send data to channel layer to not perform any synchronous operations,
                     # and only after we do sync DB stuff
+                    # We need to create a 'random id' - a temporary id for the message, which is not yet
+                    # saved to the database. I.e. for the client it is 'pending delivery' and can be
+                    # considered delivered only when it's saved to database and received a proper id,
+                    # which is then broadcast separately both to sender & receiver.
+
+                    rid = generate_random_id()
                     await self.channel_layer.group_send(user_pk, {"type": "new_text_message",
-                                                                  "from": self.group_name, "text": text})
+                                                                  "random_id": rid,
+                                                                  "text": text,
+                                                                  "read": False,
+                                                                  "sender": self.group_name,
+                                                                  "receiver": user_pk,
+                                                                  "sender_username": self.sender_username,
+                                                                  "from": self.group_name})
 
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     if not recipient:
                         return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
                     else:
-                        dialog_created: bool = await save_text_message(text, from_=self.user, to=recipient)
-                        if dialog_created:
-                            await self.channel_layer.group_send(user_pk,
-                                                                {"type": "new_dialog", "with": self.group_name})
+                        msg = await save_text_message(text, from_=self.user, to=recipient)
+                        ev = {"type": "message_id_created", "random_id": rid, "db_id": msg.id}
+                        await self.channel_layer.group_send(user_pk, ev)
+                        await self.channel_layer.group_send(self.group_name, ev)
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
@@ -171,11 +189,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         #     }
         # )
 
-    async def new_dialog(self, event):
+    async def message_id_created(self, event):
         await self.send(
             text_data=json.dumps({
-                'msg_type': MessageTypes.DialogCreated,
-                'with': event['with']
+                'msg_type': MessageTypes.MessageIdCreated,
+                'random_id': event['random_id'],
+                'db_id': event['db_id']
             }))
 
     async def new_text_message(self, event):

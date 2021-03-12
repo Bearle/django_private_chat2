@@ -40,8 +40,8 @@ def serialize_message_model(m: MessageModel, user_id):
         "edited": int(m.modified.timestamp()),
         "read": m.read,
         "file": m.file.path if m.file else None,
-        "sender": sender_pk,
-        "recipient": m.recipient.pk,
+        "sender": str(sender_pk),
+        "recipient": str(m.recipient.pk),
         "out": is_out,
         "sender_username": m.sender.get_username()
     }
@@ -56,7 +56,7 @@ def serialize_dialog_model(m: DialogsModel, user_id):
         "id": m.id,
         "created": int(m.created.timestamp()),
         "modified": int(m.modified.timestamp()),
-        "other_user_id": other_user.pk,
+        "other_user_id": str(other_user.pk),
         "unread_count": unread_count,
         "username": other_user.get_username()
     }

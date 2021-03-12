@@ -80,26 +80,10 @@ class DialogsModel(TimeStampedModel):
         res = DialogsModel.dialog_exists(u1, u2)
         if not res:
             DialogsModel.objects.create(user1=u1, user2=u2)
-            return True
-        else:
-            return False
 
     @staticmethod
     def get_dialogs_for_user(user: AbstractBaseUser):
         return DialogsModel.objects.filter(Q(user1=user) | Q(user2=user)).values_list('user1__pk', 'user2__pk')
-
-
-class MessageModelManager(SoftDeletableManager):
-    def create(self, **kwargs):
-        """
-        Create a new object with the given kwargs, saving it to the database
-        and returning the created object.
-        """
-        obj = self.model(**kwargs)
-        self._for_write = True
-        dialog_created = obj.save(force_insert=True, using=self.db)
-        return dialog_created
-
 
 class MessageModel(TimeStampedModel, SoftDeletableModel):
     id = models.BigAutoField(primary_key=True, verbose_name=_("Id"))
@@ -112,7 +96,6 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
 
     read = models.BooleanField(verbose_name=_("Read"), default=False)
     all_objects = models.Manager()
-    objects = MessageModelManager(_emit_deprecation_warnings=True)
 
     @staticmethod
     def get_unread_count_for_dialog_with_user(sender, recipient):
