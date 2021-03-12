@@ -82,6 +82,7 @@ type DialogModel =
    modified: DateTimeOffset
    other_user_id: int
    unread_count: int
+   username: string
   }
   static member Decoder: Decoder<DialogModel> =
       Decode.object (fun get ->
@@ -91,6 +92,7 @@ type DialogModel =
               modified = (get.Required.Field "modified" Decode.int64) |> DateTimeOffset.FromUnixTimeSeconds
               other_user_id = get.Required.Field "other_user_id" Decode.int
               unread_count = get.Required.Field "unread_count" Decode.int
+              username = get.Required.Field "username" Decode.string
           })
 
 type DialogsResponse =
@@ -219,8 +221,8 @@ let fetchDialogs() =
                 avatarFlexible = true
                 statusColor = "lightgreen"
                 statusColorType = None
-                alt = "alt"
-                title = "title"
+                alt = dialog.username
+                title = dialog.username
                 date = dialog.created
                 subtitle = "subtitle"
                 unread = dialog.unread_count
