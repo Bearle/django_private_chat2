@@ -69,6 +69,7 @@ export class App extends Component {
         //some js magic
         this.performSendingMessage = this.performSendingMessage.bind(this);
         this.addMessage = this.addMessage.bind(this);
+        this.replaceMessageId = this.replaceMessageId.bind(this);
     }
 
     componentDidMount() {
@@ -111,7 +112,7 @@ export class App extends Component {
         }
         socket.onmessage = function (e) {
             that.setState({socketConnectionState: socket.readyState});
-            handleIncomingWebsocketMessage(socket, e.data, that.addMessage)
+            handleIncomingWebsocketMessage(socket, e.data, that.addMessage, that.replaceMessageId)
         };
         socket.onclose = function (e) {
             toast.info("Disconnected...", toastOptions)
@@ -352,6 +353,14 @@ export class App extends Component {
         this.setState({
             messageList: list,
         });
+    }
+    replaceMessageId(old_id, new_id) {
+        console.log("Replacing random id  " + old_id + " with db_id "+ new_id)
+        this.setState(prevState => ({
+            messageList: prevState.messageList.map(el => (el.data.message_id.Equals(old_id) ?
+                {...el,data: {dialog_id:el.data.dialog_id, message_id: new_id} ,status: 'received'} : el))
+        }))
+        console.log(this.state)
     }
     performSendingMessage() {
         if (this.state.selectedDialog) {

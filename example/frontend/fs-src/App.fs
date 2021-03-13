@@ -135,6 +135,17 @@ type MessageTypeTextMessage =
               receiver = get.Required.Field "receiver" Decode.string
               sender_username = get.Required.Field "sender_username" Decode.string
           })
+type MessageTypeMessageIdCreated=
+    {
+    random_id: int64
+    db_id: int64
+    }
+    static member Decoder: Decoder<MessageTypeMessageIdCreated> =
+      Decode.object (fun get ->
+          {
+              random_id=get.Required.Field "random_id" Decode.int64
+              db_id=get.Required.Field "db_id" Decode.int64
+          })
 type MessageTypes =
     | WentOnline = 1
     | WentOffline = 2
@@ -223,7 +234,8 @@ let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage)
         data = {dialog_id=message.sender;message_id=message.random_id}
     }
 
-let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (addMessage: MessageBox -> unit) =
+let handleIncomingWebsocketMessage (sock: WebSocket) (message: string)
+                                   (addMessage: MessageBox -> unit) (replaceMessageId: int64 -> int64 -> unit) =
     let res =
         Decode.fromString MessageTypesDecoder message
         |> Result.bind (fun o ->
@@ -233,10 +245,16 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (addMessa
 
                 let decoded = Decode.fromString MessageTypeTextMessage.Decoder message
                               |> Result.map createMessageBoxFromMessageTypeTextMessage
-                printfn "Decoded MessageTypes.TextMessage result - %A" decoded
                 match decoded with
                 | Result.Ok d -> addMessage d |> Result.Ok
                 | Result.Error e -> Result.Error e
+            | MessageTypes.MessageIdCreated ->
+                printfn "Received MessageTypes.MessageIdCreated - %s" message
+                let decoded = Decode.fromString MessageTypeMessageIdCreated.Decoder message
+                match decoded with
+                | Result.Ok d -> replaceMessageId d.random_id d.db_id |> Result.Ok
+                | Result.Error e -> Result.Error e
+
             | x ->
                 printfn "Received unhandled MessageType %A" x
                 Result.Ok ()
@@ -254,7 +272,8 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (addMessa
 //let decodeError s  = Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string s ErrorDescription
 
 let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) =
-    printfn "Sending text message: '%A', user_pk:'%A' " text user_pk
+    printfn "Sending text message: '%A', user_pk:'%A' to socket" text user_pk
+    Browser.Dom.console.log sock
     let data = [
         "text", Encode.string text
         "user_pk", Encode.string user_pk
