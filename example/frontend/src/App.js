@@ -129,7 +129,10 @@ export class App extends Component {
         }
         socket.onmessage = function (e) {
             that.setState({socketConnectionState: socket.readyState});
-            handleIncomingWebsocketMessage(socket, e.data, that.addMessage, that.replaceMessageId)
+            let errMsg = handleIncomingWebsocketMessage(socket, e.data, that.addMessage, that.replaceMessageId);
+            if (errMsg) {
+                toast.error(errMsg)
+            }
         };
         socket.onclose = function (e) {
             toast.info("Disconnected...", toastOptions)

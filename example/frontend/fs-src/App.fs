@@ -305,13 +305,14 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string)
                 Result.Ok ()
             )
     match res with
-    | Result.Ok _  -> ()
+    | Result.Ok _  -> None
     | Result.Error e ->
         printfn "Error while processing message %s - error: %s" message e
         let data = [
          "error", Encode.tuple2 (Encode.Enum.int) (Encode.string) (ErrorTypes.MessageParsingError, (sprintf "msg_type decoding error - %s" e))
         ]
         sock.send (msgTypeEncoder MessageTypes.ErrorOccured data)
+        Some (sprintf "Error occured - %s" e)
 
 
 //let decodeError s  = Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string s ErrorDescription
