@@ -375,8 +375,14 @@ export class App extends Component {
     replaceMessageId(old_id, new_id) {
         console.log("Replacing random id  " + old_id + " with db_id " + new_id)
         this.setState(prevState => ({
-            messageList: prevState.messageList.map(el => (el.data.message_id.Equals(old_id) ?
-                {...el, data: {dialog_id: el.data.dialog_id, message_id: new_id}, status: 'received'} : el))
+            messageList: prevState.messageList.map(function (el) {
+                if (el.data.message_id.Equals(old_id)) {
+                    let new_status = el.data.out ? 'sent' : 'received'
+                    return {...el, data: {dialog_id: el.data.dialog_id, message_id: new_id}, status: new_status}
+                } else {
+                    return el
+                }
+            })
         }))
         console.log(this.state)
     }
@@ -386,7 +392,12 @@ export class App extends Component {
             let text = this.textInput.input.value;
             let user_pk = this.state.selectedDialog.id;
             this.clearTextInput();
-            sendOutgoingTextMessage(this.state.socket, text, user_pk);
+            let msgBox = sendOutgoingTextMessage(this.state.socket, text, user_pk, this.state.selfInfo);
+            console.log("sendOutgoingTextMessage result:")
+            console.log(msgBox)
+            if (msgBox) {
+                this.addMessage(msgBox);
+            }
         }
     }
 

@@ -19,6 +19,7 @@ class ErrorTypes(enum.IntEnum):
     TextMessageInvalid = 2
     InvalidMessageReadId = 3
     InvalidUserPk = 4
+    InvalidRandomId = 5
 
 
 ErrorDescription = Tuple[ErrorTypes, str]
@@ -29,6 +30,7 @@ ErrorDescription = Tuple[ErrorTypes, str]
 class MessageTypeTextMessage(TypedDict):
     text: str
     user_pk: str
+    random_id: int
 
 
 class MessageTypes(enum.IntEnum):
@@ -40,11 +42,6 @@ class MessageTypes(enum.IntEnum):
     MessageRead = 6
     ErrorOccured = 7
     MessageIdCreated = 8
-
-
-def generate_random_id() -> int:
-    return random.randrange(-9223372036854775808, 0)
-
 
 @database_sync_to_async
 def get_groups_to_add(u: AbstractBaseUser) -> Set[int]:
@@ -59,12 +56,10 @@ def get_user_by_pk(pk: str) -> Optional[AbstractBaseUser]:
 
 @database_sync_to_async
 def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> MessageModel:
-    """
-    @rtype: bool - indicates whether a new dialog was created
-    """
     return MessageModel.objects.create(text=text, sender=from_, recipient=to)
 
 
+# TODO: solve eavesdropping problem - only send ws messages to user's channel
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         # TODO:
@@ -116,6 +111,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     return ErrorTypes.MessageParsingError, "'text' not present in data"
                 elif 'user_pk' not in data:
                     return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
+                elif 'random_id' not in data:
+                    return ErrorTypes.MessageParsingError, "'random_id' not present in data"
                 elif data['text'] == '':
                     return ErrorTypes.TextMessageInvalid, "'text' should not be blank"
                 elif len(data['text']) > TEXT_MAX_LENGTH:
@@ -124,17 +121,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     return ErrorTypes.TextMessageInvalid, "'text' should be a string"
                 elif not isinstance(data['user_pk'], str):
                     return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
+                elif not isinstance(data['random_id'], int):
+                    return ErrorTypes.InvalidRandomId, "'random_id' should be an int"
+                elif data['random_id'] > 0:
+                    return ErrorTypes.InvalidRandomId, "'random_id' should be negative"
                 else:
                     text = data['text']
                     user_pk = data['user_pk']
+                    rid = data['random_id']
                     # first we send data to channel layer to not perform any synchronous operations,
                     # and only after we do sync DB stuff
                     # We need to create a 'random id' - a temporary id for the message, which is not yet
                     # saved to the database. I.e. for the client it is 'pending delivery' and can be
                     # considered delivered only when it's saved to database and received a proper id,
                     # which is then broadcast separately both to sender & receiver.
-
-                    rid = generate_random_id()
+                    logger.info(f"Validation passed, sending text message from {self.group_name} to {user_pk}")
                     await self.channel_layer.group_send(user_pk, {"type": "new_text_message",
                                                                   "random_id": rid,
                                                                   "text": text,
@@ -143,16 +144,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                                                   "sender_username": self.sender_username})
 
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
+                    logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
                     if not recipient:
                         return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
                     else:
+                        logger.info(f"Will save text message from {self.user} to {recipient}")
                         msg = await save_text_message(text, from_=self.user, to=recipient)
                         ev = {"type": "message_id_created", "random_id": rid, "db_id": msg.id}
+                        logger.info(f"Message with id {msg.id} saved, firing events to {user_pk} & {self.group_name}")
                         await self.channel_layer.group_send(user_pk, ev)
                         await self.channel_layer.group_send(self.group_name, ev)
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
+        logger.info(f"Receive fired")
         error: Optional[ErrorDescription] = None
         try:
             text_data_json = json.loads(text_data)
@@ -172,10 +177,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError as e:
             error = (ErrorTypes.MessageParsingError, f"jsonDecodeError - {e}")
         if error is not None:
-            await self.send(text_data=json.dumps({
+            error_data = {
                 'msg_type': MessageTypes.ErrorOccured,
                 'error': error
-            }))
+            }
+            logger.info(f"Will send error {error_data} to {self.group_name}")
+            await self.send(text_data=json.dumps(error_data))
         # message = text_data_json['message']
         #
         # # Send message to room group

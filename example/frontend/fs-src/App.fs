@@ -35,6 +35,10 @@ let getPhotoString (inputString: string) (size: int option) =
     let i = createNew (Identicon) (h, {|size=size;margin = 0|})
     "data:image/png;base64," + unbox<string> i
 
+let generateRandomId(): int64 =
+    let r = Random()
+    -(r.Next()) |> int64
+
 type MessageModel =
   {
    id: int
@@ -156,6 +160,16 @@ type MessageTypeMessageIdCreated=
               random_id=get.Required.Field "random_id" Decode.int64
               db_id=get.Required.Field "db_id" Decode.int64
           })
+
+type MessageTypeErrorOccured=
+    {
+    error: ErrorDescription
+    }
+    static member Decoder: Decoder<MessageTypeErrorOccured> =
+      Decode.object (fun get ->
+          {
+              error=get.Required.Field "error" (Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string)
+          })
 type MessageTypes =
     | WentOnline = 1
     | WentOffline = 2
@@ -194,6 +208,7 @@ type MessageBoxType =
 type MessageBoxData = {
     dialog_id: string
     message_id: int64
+    out: bool
 }
 type MessageBox = {
     position: MessageBoxPosition
@@ -240,7 +255,20 @@ let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage)
         status=MessageBoxStatus.Waiting
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
-        data = {dialog_id=message.sender;message_id=message.random_id}
+        data = {dialog_id=message.sender;message_id=message.random_id;out=false}
+    }
+
+let createMessageBoxFromOutgoingTextMessage (text: string) (user_pk:string) (self_pk:string) (self_username: string) (random_id:int64)=
+    let avatar = getPhotoString self_pk (Some 150)
+    {
+        position=MessageBoxPosition.Right
+        ``type``=MessageBoxType.Text
+        text = text
+        title=self_username
+        status=MessageBoxStatus.Waiting
+        avatar=avatar
+        date=(DateTimeOffset(JS.Constructors.Date.Create()))
+        data = {dialog_id=user_pk;message_id=random_id;out=true}
     }
 
 let handleIncomingWebsocketMessage (sock: WebSocket) (message: string)
@@ -264,6 +292,14 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string)
                 | Result.Ok d -> replaceMessageId d.random_id d.db_id |> Result.Ok
                 | Result.Error e -> Result.Error e
 
+            | MessageTypes.ErrorOccured ->
+                printfn "Received MessageTypes.ErrorOccured - %s" message
+                let decoded = Decode.fromString MessageTypeErrorOccured.Decoder message
+                match decoded with
+                | Result.Ok err ->
+                    let msg = sprintf "Error: %A, message %s" (fst err.error) (snd err.error)
+                    Result.Error msg
+                | Result.Error e -> Result.Error e
             | x ->
                 printfn "Received unhandled MessageType %A" x
                 Result.Ok ()
@@ -280,14 +316,16 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string)
 
 //let decodeError s  = Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string s ErrorDescription
 
-let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) =
-    printfn "Sending text message: '%A', user_pk:'%A' to socket" text user_pk
-    Browser.Dom.console.log sock
+let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) (self_info: SelfInfoResponse option) =
+    printfn "Sending text message: '%A', user_pk:'%A'" text user_pk
+    let randomId = generateRandomId()
     let data = [
         "text", Encode.string text
         "user_pk", Encode.string user_pk
+        "random_id", Encode.int (int32 randomId)
     ]
     sock.send (msgTypeEncoder MessageTypes.TextMessage data)
+    self_info |> Option.map (fun x -> createMessageBoxFromOutgoingTextMessage text user_pk x.pk x.username randomId)
 
 let sendIsTypingMessage (sock: WebSocket) =
     sock.send (msgTypeEncoder MessageTypes.IsTyping [])
@@ -338,7 +376,7 @@ let fetchMessages() =
                 status=status
                 avatar=avatar
                 date=message.sent
-                data = {dialog_id=dialog_id;message_id=int64 message.id}
+                data = {dialog_id=dialog_id;message_id=int64 message.id;out=message.out}
             })
         |> Array.sortBy (fun x -> x.date)
         )
