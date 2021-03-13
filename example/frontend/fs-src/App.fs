@@ -74,7 +74,17 @@ type MessagesResponse =
                   data = get.Required.Field "data" (Decode.array MessageModel.Decoder)
                 }
             )
-
+type SelfInfoResponse =
+    { pk: string
+      username: string
+      }
+    static member Decoder : Decoder<SelfInfoResponse> =
+        Decode.object
+            (fun get ->
+                { pk = get.Required.Field "pk" Decode.string
+                  username = get.Required.Field "username" Decode.string
+                }
+            )
 type DialogModel =
   {
    id: int
@@ -156,7 +166,6 @@ type MessageTypes =
     | ErrorOccured = 7
     | MessageIdCreated = 8
 
-//let MessageTypesDecoder: Decoder<MessageTypes> = Decode.Enum.int<MessageTypes>
 let MessageTypesDecoder: Decoder<MessageTypes> = Decode.object (fun get -> get.Required.Field "msg_type" Decode.Enum.int<MessageTypes>)
 
 [<StringEnum>]
@@ -286,6 +295,18 @@ let sendIsTypingMessage (sock: WebSocket) =
 let backendUrl = "http://127.0.0.1:8000"
 let messagesEndpoint = sprintf "%s/messages/" backendUrl
 let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
+let selfEndpoint = sprintf "%s/self/" backendUrl
+
+let fetchSelfInfo() =
+    promise {
+        let! resp = tryFetch selfEndpoint []
+        match resp with
+        | Result.Ok r ->
+            let! text = r.text()
+            let decoded = Decode.fromString SelfInfoResponse.Decoder text
+            return decoded
+        | Result.Error e -> return Result.Error e.Message
+    }
 
 let fetchMessages() =
     promise {

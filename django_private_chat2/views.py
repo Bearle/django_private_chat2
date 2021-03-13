@@ -21,6 +21,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse, JsonResponse
 from django.core.paginator import Page, Paginator
 from django.conf import settings
+from django.contrib.auth.models import AbstractBaseUser
 
 
 class MessagesModelList(LoginRequiredMixin, ListView):
@@ -51,7 +52,7 @@ class DialogsModelList(LoginRequiredMixin, ListView):
     paginate_by = getattr(settings, 'DIALOGS_PAGINATION', 20)
 
     def get_queryset(self):
-        qs = DialogsModel.objects.filter(Q(user1=self.request.user) | Q(user2=self.request.user))\
+        qs = DialogsModel.objects.filter(Q(user1=self.request.user) | Q(user2=self.request.user)) \
             .prefetch_related('user1', 'user2')
         return qs.order_by('-created')
 
@@ -66,3 +67,16 @@ class DialogsModelList(LoginRequiredMixin, ListView):
             'data': data
         }
         return JsonResponse(return_data, **response_kwargs)
+
+
+class SelfInfoView(LoginRequiredMixin, DetailView):
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def render_to_response(self, context, **response_kwargs):
+        user: AbstractBaseUser = context['object']
+        data = {
+            "username": user.get_username(),
+            "pk": str(user.pk)
+        }
+        return JsonResponse(data, **response_kwargs)

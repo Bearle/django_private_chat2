@@ -21,6 +21,7 @@ import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle}
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
+    fetchSelfInfo,
     handleIncomingWebsocketMessage,
     sendOutgoingTextMessage,
     filterMessagesForDialog,
@@ -63,6 +64,7 @@ export class App extends Component {
             socketConnectionState: 0,
             messageList: [],
             dialogList: [],
+            selfInfo: null,
             selectedDialog: null,
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
         };
@@ -99,6 +101,16 @@ export class App extends Component {
                 toast.error(r.fields[0])
             }
         })
+        fetchSelfInfo().then((r) => {
+            if (r.tag === 0) {
+                console.log("Fetched selfInfo:")
+                console.log(r.fields[0])
+                this.setState({selfInfo:r.fields[0]})
+            } else {
+                console.log("SelfInfo error:")
+                toast.error(r.fields[0])
+            }
+        })
         this.setState({socketConnectionState: this.state.socket.readyState});
         const that = this;
         let socket = this.state.socket;
@@ -106,7 +118,8 @@ export class App extends Component {
             autoClose: 1500,
             hideProgressBar: true,
             closeOnClick: false,
-            pauseOnHover: true,
+            pauseOnHover: false,
+            pauseOnFocusLoss: false,
             draggable: false,
         };
 
@@ -377,13 +390,7 @@ export class App extends Component {
         }
     }
 
-
     render() {
-        var arr = [];
-        for (var i = 0; i < 5; i++)
-            arr.push(i);
-
-        // var chatSource = arr.map(x => this.random('chat'));
         return (
             <div className='container'>
                 <div
