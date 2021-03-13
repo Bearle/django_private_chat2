@@ -120,7 +120,7 @@ type ErrorDescription = ErrorTypes * string
 
 type MessageTypeTextMessage =
     {
-    random_id: int
+    random_id: int64
     text: string
     sender: string
     receiver: string
@@ -129,7 +129,7 @@ type MessageTypeTextMessage =
     static member Decoder: Decoder<MessageTypeTextMessage> =
       Decode.object (fun get ->
           {
-              random_id=get.Required.Field "random_id" Decode.int
+              random_id=get.Required.Field "random_id" Decode.int64
               text = get.Required.Field "text" Decode.string
               sender = get.Required.Field "sender" Decode.string
               receiver = get.Required.Field "receiver" Decode.string
@@ -144,6 +144,9 @@ type MessageTypes =
     | MessageRead = 6
     | ErrorOccured = 7
     | MessageIdCreated = 8
+
+//let MessageTypesDecoder: Decoder<MessageTypes> = Decode.Enum.int<MessageTypes>
+let MessageTypesDecoder: Decoder<MessageTypes> = Decode.object (fun get -> get.Required.Field "msg_type" Decode.Enum.int<MessageTypes>)
 
 [<StringEnum>]
 type MessageBoxPosition =
@@ -170,7 +173,7 @@ type MessageBoxType =
 
 type MessageBoxData = {
     dialog_id: string
-    message_id: int
+    message_id: int64
 }
 type MessageBox = {
     position: MessageBoxPosition
@@ -181,7 +184,7 @@ type MessageBox = {
     avatar: string
     date: DateTimeOffset
     data: MessageBoxData
-} with member this.HasDbId() = this.data.message_id > 0
+} with member this.HasDbId() = this.data.message_id > 0L
 
 type ChatItem = {
     id: string
@@ -198,6 +201,8 @@ type ChatItem = {
 type State = {
     socketConnectionState: int
     messageList: MessageBox array
+    dialogList: ChatItem array
+    selectedDialog: ChatItem
     socket: WebSocket
 }
 let msgTypeEncoder (t:MessageTypes) data =
@@ -218,8 +223,32 @@ let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage)
         data = {dialog_id=message.sender;message_id=message.random_id}
     }
 
-let handleIncomingWebsocketMessage (message: string) =
-    ()
+let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (addMessage: MessageBox -> unit) =
+    let res =
+        Decode.fromString MessageTypesDecoder message
+        |> Result.bind (fun o ->
+            match o with
+            | MessageTypes.TextMessage ->
+                printfn "Received MessageTypes.TextMessage - %s" message
+
+                let decoded = Decode.fromString MessageTypeTextMessage.Decoder message
+                              |> Result.map createMessageBoxFromMessageTypeTextMessage
+                printfn "Decoded MessageTypes.TextMessage result - %A" decoded
+                match decoded with
+                | Result.Ok d -> addMessage d |> Result.Ok
+                | Result.Error e -> Result.Error e
+            | x ->
+                printfn "Received unhandled MessageType %A" x
+                Result.Ok ()
+            )
+    match res with
+    | Result.Ok _  -> ()
+    | Result.Error e ->
+        printfn "Error while processing message %s - error: %s" message e
+        let data = [
+         "error", Encode.tuple2 (Encode.Enum.int) (Encode.string) (ErrorTypes.MessageParsingError, (sprintf "msg_type decoding error - %s" e))
+        ]
+        sock.send (msgTypeEncoder MessageTypes.ErrorOccured data)
 
 
 //let decodeError s  = Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string s ErrorDescription
@@ -269,7 +298,7 @@ let fetchMessages() =
                 status=status
                 avatar=avatar
                 date=message.sent
-                data = {dialog_id=dialog_id;message_id=message.id}
+                data = {dialog_id=dialog_id;message_id=int64 message.id}
             })
         |> Array.sortBy (fun x -> x.date)
         )

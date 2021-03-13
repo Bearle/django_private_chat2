@@ -21,6 +21,7 @@ import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle}
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
+    handleIncomingWebsocketMessage,
     sendOutgoingTextMessage,
     filterMessagesForDialog,
     fetchDialogs,
@@ -67,6 +68,7 @@ export class App extends Component {
         };
         //some js magic
         this.performSendingMessage = this.performSendingMessage.bind(this);
+        this.addMessage = this.addMessage.bind(this);
     }
 
     componentDidMount() {
@@ -109,8 +111,7 @@ export class App extends Component {
         }
         socket.onmessage = function (e) {
             that.setState({socketConnectionState: socket.readyState});
-            console.log("websocket message: ")
-            console.log(e.data)
+            handleIncomingWebsocketMessage(socket, e.data, that.addMessage)
         };
         socket.onclose = function (e) {
             toast.info("Disconnected...", toastOptions)
@@ -343,13 +344,15 @@ export class App extends Component {
         }
     }
 
-    // addMessage(mtype) {
-    //     var list = this.state.messageList;
-    //     list.push(this.random('message', mtype));
-    //     this.setState({
-    //         messageList: list,
-    //     });
-    // }
+    addMessage(msg) {
+        console.log("Calling addMessage for ")
+        console.log(msg)
+        let list = this.state.messageList;
+        list.push(msg);
+        this.setState({
+            messageList: list,
+        });
+    }
     performSendingMessage() {
         if (this.state.selectedDialog) {
             let text = this.textInput.input.value;
