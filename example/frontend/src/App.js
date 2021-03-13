@@ -16,7 +16,7 @@ import {
     Dropdown,
     Popup,
 } from 'react-chat-elements';
-import debounce from 'lodash.debounce';
+import throttle from 'lodash.throttle';
 import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
@@ -35,7 +35,7 @@ import {
 } from 'timeago.js';
 
 import loremIpsum from 'lorem-ipsum';
-import Identicon from 'identicon.js';
+
 
 export class App extends Component {
 
@@ -70,6 +70,10 @@ export class App extends Component {
         this.performSendingMessage = this.performSendingMessage.bind(this);
         this.addMessage = this.addMessage.bind(this);
         this.replaceMessageId = this.replaceMessageId.bind(this);
+
+        this.deb = throttle(() => {
+            sendIsTypingMessage(this.state.socket)
+        }, 5000)
     }
 
     componentDidMount() {
@@ -354,14 +358,16 @@ export class App extends Component {
             messageList: list,
         });
     }
+
     replaceMessageId(old_id, new_id) {
-        console.log("Replacing random id  " + old_id + " with db_id "+ new_id)
+        console.log("Replacing random id  " + old_id + " with db_id " + new_id)
         this.setState(prevState => ({
             messageList: prevState.messageList.map(el => (el.data.message_id.Equals(old_id) ?
-                {...el,data: {dialog_id:el.data.dialog_id, message_id: new_id} ,status: 'received'} : el))
+                {...el, data: {dialog_id: el.data.dialog_id, message_id: new_id}, status: 'received'} : el))
         }))
         console.log(this.state)
     }
+
     performSendingMessage() {
         if (this.state.selectedDialog) {
             let text = this.textInput.input.value;
@@ -371,13 +377,13 @@ export class App extends Component {
         }
     }
 
+
     render() {
         var arr = [];
         for (var i = 0; i < 5; i++)
             arr.push(i);
 
         // var chatSource = arr.map(x => this.random('chat'));
-        const debouncedTyping = debounce(() => sendIsTypingMessage(this.state.socket), 2000);
         return (
             <div className='container'>
                 <div
@@ -438,7 +444,10 @@ export class App extends Component {
                         // buttonsFloat='left'
                         onKeyPress={(e) => {
                             if (e.charCode !== 13) {
-                                debouncedTyping();
+                                console.log('key pressed');
+
+                                this.deb();
+                                // this.debouncedTyping();
                             }
                             if (e.shiftKey && e.charCode === 13) {
                                 return true;
