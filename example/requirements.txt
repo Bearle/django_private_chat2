@@ -6,4 +6,4 @@
 
 
 Django==3.1.7
-channels_redis==3.2.0
+channels_rabbitmq==3.0.0

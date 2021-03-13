@@ -129,16 +129,20 @@ LOGIN_URL = '/admin/login/'
 ALLOWED_HOSTS = ['*']
 
 ASGI_APPLICATION = 'example.example.routing.application'
+# Uncomment this to try out RabbitMQ layer
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_rabbitmq.core.RabbitmqChannelLayer",
+#         "CONFIG": {
+#             "host": "amqp://guest:guest@127.0.0.1:5672/",
+#         },
+#     },
+# }
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-            "capacity": 5000,
-        },
-    },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
 }
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
