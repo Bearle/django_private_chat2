@@ -37,7 +37,7 @@ import {
 
 import loremIpsum from 'lorem-ipsum';
 
-
+const TYPING_TIMEOUT = 5000;
 export class App extends Component {
 
     constructor(props) {
@@ -64,6 +64,7 @@ export class App extends Component {
             socketConnectionState: 0,
             messageList: [],
             dialogList: [],
+            typingPKs: [],
             selfInfo: null,
             selectedDialog: null,
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
@@ -72,10 +73,11 @@ export class App extends Component {
         this.performSendingMessage = this.performSendingMessage.bind(this);
         this.addMessage = this.addMessage.bind(this);
         this.replaceMessageId = this.replaceMessageId.bind(this);
+        this.addPKToTyping = this.addPKToTyping.bind(this);
 
         this.deb = throttle(() => {
             sendIsTypingMessage(this.state.socket)
-        }, 5000)
+        }, TYPING_TIMEOUT)
     }
 
     componentDidMount() {
@@ -105,7 +107,7 @@ export class App extends Component {
             if (r.tag === 0) {
                 console.log("Fetched selfInfo:")
                 console.log(r.fields[0])
-                this.setState({selfInfo:r.fields[0]})
+                this.setState({selfInfo: r.fields[0]})
             } else {
                 console.log("SelfInfo error:")
                 toast.error(r.fields[0])
@@ -129,7 +131,12 @@ export class App extends Component {
         }
         socket.onmessage = function (e) {
             that.setState({socketConnectionState: socket.readyState});
-            let errMsg = handleIncomingWebsocketMessage(socket, e.data, that.addMessage, that.replaceMessageId);
+
+            let errMsg = handleIncomingWebsocketMessage(socket, e.data, {
+                addMessage: that.addMessage,
+                replaceMessageId: that.replaceMessageId,
+                addPKToTyping: that.addPKToTyping
+            });
             if (errMsg) {
                 toast.error(errMsg)
             }
@@ -365,6 +372,21 @@ export class App extends Component {
         }
     }
 
+    addPKToTyping(pk) {
+        console.log("Adding " + pk + " to typing pk-s")
+        let l = this.state.typingPKs;
+        l.push(pk);
+        this.setState({typingPKs: l})
+        const that = this;
+        setTimeout(() => {
+            console.log("Will remove "+ pk + " from typing pk-s")
+            let ll = that.state.typingPKs;
+            const index = ll.indexOf(pk);
+            if (index > -1) { ll.splice(index, 1); }
+            that.setState({typingPKs: ll})
+        },TYPING_TIMEOUT);
+    }
+
     addMessage(msg) {
         console.log("Calling addMessage for ")
         console.log(msg)
@@ -451,6 +473,10 @@ export class App extends Component {
                 <div
                     className='right-panel'>
                     <ToastContainer/>
+                    <ChatItem  {...this.state.selectedDialog} date={null} unread={0}
+                               subtitle={
+                                   this.state.selectedDialog && this.state.typingPKs.includes(this.state.selectedDialog.id) ? "typing...": ""
+                               }/>
                     <MessageList
                         className='message-list'
                         lockable={true}

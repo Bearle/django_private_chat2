@@ -99,11 +99,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
         if msg_type == MessageTypes.WentOffline \
             or msg_type == MessageTypes.WentOnline \
+            or msg_type == MessageTypes.MessageIdCreated \
             or msg_type == MessageTypes.ErrorOccured:
             logger.info(f"Ignoring message {msg_type.name}")
         else:
             if msg_type == MessageTypes.IsTyping:
-                await self.channel_layer.group_send(self.group_name, {"type": "is_typing", "user_pk": self.user.pk})
+                await self.channel_layer.group_send(self.group_name, {"type": "is_typing", "user_pk": str(self.user.pk)})
                 return None
             elif msg_type == MessageTypes.TextMessage:
                 data: MessageTypeTextMessage

@@ -170,6 +170,14 @@ type MessageTypeErrorOccured=
           {
               error=get.Required.Field "error" (Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string)
           })
+
+type MessageTypeIsTyping =
+    { user_pk: string }
+    static member Decoder: Decoder<MessageTypeIsTyping> =
+      Decode.object (fun get -> {
+              user_pk=get.Required.Field "user_pk" Decode.string
+          })
+
 type MessageTypes =
     | WentOnline = 1
     | WentOffline = 2
@@ -271,8 +279,13 @@ let createMessageBoxFromOutgoingTextMessage (text: string) (user_pk:string) (sel
         data = {dialog_id=user_pk;message_id=random_id;out=true}
     }
 
-let handleIncomingWebsocketMessage (sock: WebSocket) (message: string)
-                                   (addMessage: MessageBox -> unit) (replaceMessageId: int64 -> int64 -> unit) =
+type WSHandlingCallbacks =
+    {
+        addMessage: MessageBox -> unit
+        replaceMessageId: int64 -> int64 -> unit
+        addPKToTyping: string -> unit
+    }
+let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callbacks: WSHandlingCallbacks) =
     let res =
         Decode.fromString MessageTypesDecoder message
         |> Result.bind (fun o ->
@@ -283,13 +296,20 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string)
                 let decoded = Decode.fromString MessageTypeTextMessage.Decoder message
                               |> Result.map createMessageBoxFromMessageTypeTextMessage
                 match decoded with
-                | Result.Ok d -> addMessage d |> Result.Ok
+                | Result.Ok d -> callbacks.addMessage d |> Result.Ok
                 | Result.Error e -> Result.Error e
             | MessageTypes.MessageIdCreated ->
                 printfn "Received MessageTypes.MessageIdCreated - %s" message
                 let decoded = Decode.fromString MessageTypeMessageIdCreated.Decoder message
                 match decoded with
-                | Result.Ok d -> replaceMessageId d.random_id d.db_id |> Result.Ok
+                | Result.Ok d -> callbacks.replaceMessageId d.random_id d.db_id |> Result.Ok
+                | Result.Error e -> Result.Error e
+
+            | MessageTypes.IsTyping ->
+                printfn "Received MessageTypes.IsTyping - %s" message
+                let decoded = Decode.fromString MessageTypeIsTyping.Decoder message
+                match decoded with
+                | Result.Ok d -> callbacks.addPKToTyping d.user_pk |> Result.Ok
                 | Result.Error e -> Result.Error e
 
             | MessageTypes.ErrorOccured ->
