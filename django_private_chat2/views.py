@@ -57,6 +57,8 @@ class DialogsModelList(LoginRequiredMixin, ListView):
         return qs.order_by('-created')
 
     def render_to_response(self, context, **response_kwargs):
+        # TODO: add last message
+        # TODO: add online status
         user_pk = self.request.user.pk
         data = [serialize_dialog_model(i, user_pk) for i in context['object_list']]
         page: Page = context.pop('page_obj')

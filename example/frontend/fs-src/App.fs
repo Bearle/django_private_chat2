@@ -171,12 +171,10 @@ type MessageTypeErrorOccured=
               error=get.Required.Field "error" (Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string)
           })
 
-type MessageTypeIsTyping =
+type GenericUserPKMessage =
     { user_pk: string }
-    static member Decoder: Decoder<MessageTypeIsTyping> =
-      Decode.object (fun get -> {
-              user_pk=get.Required.Field "user_pk" Decode.string
-          })
+    static member Decoder: Decoder<GenericUserPKMessage> =
+      Decode.object (fun get -> { user_pk=get.Required.Field "user_pk" Decode.string })
 
 type MessageTypes =
     | WentOnline = 1
@@ -284,6 +282,7 @@ type WSHandlingCallbacks =
         addMessage: MessageBox -> unit
         replaceMessageId: int64 -> int64 -> unit
         addPKToTyping: string -> unit
+        changePKOnlineStatus: string -> bool -> unit
     }
 let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callbacks: WSHandlingCallbacks) =
     let res =
@@ -292,25 +291,29 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
             match o with
             | MessageTypes.TextMessage ->
                 printfn "Received MessageTypes.TextMessage - %s" message
-
-                let decoded = Decode.fromString MessageTypeTextMessage.Decoder message
-                              |> Result.map createMessageBoxFromMessageTypeTextMessage
-                match decoded with
-                | Result.Ok d -> callbacks.addMessage d |> Result.Ok
-                | Result.Error e -> Result.Error e
+                Decode.fromString MessageTypeTextMessage.Decoder message
+                |> Result.map createMessageBoxFromMessageTypeTextMessage
+                |> Result.map (callbacks.addMessage)
+                
             | MessageTypes.MessageIdCreated ->
                 printfn "Received MessageTypes.MessageIdCreated - %s" message
-                let decoded = Decode.fromString MessageTypeMessageIdCreated.Decoder message
-                match decoded with
-                | Result.Ok d -> callbacks.replaceMessageId d.random_id d.db_id |> Result.Ok
-                | Result.Error e -> Result.Error e
+                Decode.fromString MessageTypeMessageIdCreated.Decoder message
+                |> Result.map (fun d -> callbacks.replaceMessageId d.random_id d.db_id)
 
             | MessageTypes.IsTyping ->
                 printfn "Received MessageTypes.IsTyping - %s" message
-                let decoded = Decode.fromString MessageTypeIsTyping.Decoder message
-                match decoded with
-                | Result.Ok d -> callbacks.addPKToTyping d.user_pk |> Result.Ok
-                | Result.Error e -> Result.Error e
+                Decode.fromString GenericUserPKMessage.Decoder message
+                |> Result.map (fun d -> callbacks.addPKToTyping d.user_pk)
+
+            | MessageTypes.WentOnline ->
+                printfn "Received MessageTypes.WentOnline - %s" message
+                Decode.fromString GenericUserPKMessage.Decoder message
+                |> Result.map (fun d -> callbacks.changePKOnlineStatus d.user_pk true)
+
+            | MessageTypes.WentOffline ->
+                printfn "Received MessageTypes.WentOffline - %s" message
+                Decode.fromString GenericUserPKMessage.Decoder message
+                |> Result.map (fun d -> callbacks.changePKOnlineStatus d.user_pk false)
 
             | MessageTypes.ErrorOccured ->
                 printfn "Received MessageTypes.ErrorOccured - %s" message
@@ -425,7 +428,7 @@ let fetchDialogs() =
                 id = dialog.other_user_id
                 avatar = getPhotoString dialog.other_user_id None
                 avatarFlexible = true
-                statusColor = "lightgreen"
+                statusColor = ""
                 statusColorType = None
                 alt = dialog.username
                 title = dialog.username

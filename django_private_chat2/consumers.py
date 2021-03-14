@@ -72,7 +72,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.group_name: str = str(self.user.pk)
             self.sender_username: str = self.user.get_username()
             logger.info(f"Sending 'user_went_online' for user {self.user.pk}")
-            await self.channel_layer.group_send(self.group_name, {"type": "user_went_online", "user_pk": self.user.pk})
+            await self.channel_layer.group_send(self.group_name, {"type": "user_went_online", "user_pk": str(self.user.pk)})
             await self.accept()
             dialogs = await get_groups_to_add(self.user)
             logger.info(f"User {self.user.pk} connected, "
@@ -89,7 +89,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Save user was_online
         # Notify other users that the user went offline
         if close_code != 4001 and getattr(self, 'user', None) is not None:
-            await self.channel_layer.group_send(self.group_name, {"type": "user_went_offline", "user_pk": self.user.pk})
+            await self.channel_layer.group_send(self.group_name, {"type": "user_went_offline", "user_pk": str(self.user.pk)})
             dialogs = await get_groups_to_add(self.user)
             logger.info(f"User {self.user.pk} disconnected, removing channel {self.channel_name} from groups {dialogs}")
             for d in dialogs:

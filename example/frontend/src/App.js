@@ -65,6 +65,7 @@ export class App extends Component {
             messageList: [],
             dialogList: [],
             typingPKs: [],
+            onlinePKs: [],
             selfInfo: null,
             selectedDialog: null,
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
@@ -74,6 +75,7 @@ export class App extends Component {
         this.addMessage = this.addMessage.bind(this);
         this.replaceMessageId = this.replaceMessageId.bind(this);
         this.addPKToTyping = this.addPKToTyping.bind(this);
+        this.changePKOnlineStatus = this.changePKOnlineStatus.bind(this);
 
         this.deb = throttle(() => {
             sendIsTypingMessage(this.state.socket)
@@ -135,7 +137,8 @@ export class App extends Component {
             let errMsg = handleIncomingWebsocketMessage(socket, e.data, {
                 addMessage: that.addMessage,
                 replaceMessageId: that.replaceMessageId,
-                addPKToTyping: that.addPKToTyping
+                addPKToTyping: that.addPKToTyping,
+                changePKOnlineStatus: that.changePKOnlineStatus
             });
             if (errMsg) {
                 toast.error(errMsg)
@@ -379,12 +382,22 @@ export class App extends Component {
         this.setState({typingPKs: l})
         const that = this;
         setTimeout(() => {
+            // We can't use 'l' here because it might have been changed in the meantime
             console.log("Will remove "+ pk + " from typing pk-s")
             let ll = that.state.typingPKs;
             const index = ll.indexOf(pk);
             if (index > -1) { ll.splice(index, 1); }
             that.setState({typingPKs: ll})
         },TYPING_TIMEOUT);
+    }
+    changePKOnlineStatus(pk, onoff) {
+        console.log("Setting "+ pk + " to "+ onoff ? "online" : "offline" + " status")
+        let onlines = this.state.onlinePKs;
+        if (onoff) {onlines.push(pk)} else {
+            const index = onlines.indexOf(pk);
+            if (index > -1) { onlines.splice(index, 1); }
+        }
+        this.setState({onlinePKs:onlines})
     }
 
     addMessage(msg) {
@@ -474,6 +487,9 @@ export class App extends Component {
                     className='right-panel'>
                     <ToastContainer/>
                     <ChatItem  {...this.state.selectedDialog} date={null} unread={0}
+                               statusColor={
+                                   this.state.selectedDialog && this.state.onlinePKs.includes(this.state.selectedDialog.id) ? "lightgreen": ""
+                               }
                                subtitle={
                                    this.state.selectedDialog && this.state.typingPKs.includes(this.state.selectedDialog.id) ? "typing...": ""
                                }/>
@@ -494,7 +510,6 @@ export class App extends Component {
                                 console.log('key pressed');
 
                                 this.deb();
-                                // this.debouncedTyping();
                             }
                             if (e.shiftKey && e.charCode === 13) {
                                 return true;
