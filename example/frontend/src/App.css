@@ -50,3 +50,7 @@ button {
     height: 50px;
     background: red;
 }
+
+.rce-mbox-text {
+  margin-right: 10px;
+}

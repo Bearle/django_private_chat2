@@ -28,9 +28,9 @@ import {
     fetchDialogs,
     fetchMessages,
     sendIsTypingMessage,
-    hash64,
-    getPhotoString
 } from "../fs-src/App.fs.js"
+
+import {getPhotoString} from "../fs-src/Utils.fs.js"
 import {
     format,
 } from 'timeago.js';
