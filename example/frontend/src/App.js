@@ -398,6 +398,19 @@ export class App extends Component {
             if (index > -1) { onlines.splice(index, 1); }
         }
         this.setState({onlinePKs:onlines})
+        this.setState(prevState => ({
+            dialogList: prevState.dialogList.map(function (el) {
+                if (el.id === pk) {
+                    if (onoff) {
+                        return {...el, statusColor: 'lightgreen'};
+                    } else {
+                        return {...el, statusColor: ''};
+                    }
+                } else {
+                    return el;
+                }
+            })
+        }))
     }
 
     addMessage(msg) {
