@@ -17,10 +17,13 @@ If you wish to build it yourself (or for development), read below.
 
 ## Pre-requisites
 
-1.[https://yarnpkg.com/](Yarn)
+1.[Yarn](https://yarnpkg.com/) 
+
 `npm install -g yarn`
-2. [https://dotnet.microsoft.com/download/dotnet/5.0](dotnet 3.1 or later SDK (dotnet 5 sdk preferably))
+2. [dotnet 3.1 or later SDK (dotnet 5 sdk preferably)](https://dotnet.microsoft.com/download/dotnet/5.0)
+   
 3. Install dependencies (fable dotnet tool will be auto-installed)
+
 `cd frontend && yarn install`
    
 ## Build & development
