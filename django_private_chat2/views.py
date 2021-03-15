@@ -50,8 +50,8 @@ class DialogsModelList(LoginRequiredMixin, ListView):
     paginate_by = getattr(settings, 'DIALOGS_PAGINATION', 20)
 
     def get_queryset(self):
-        qs = DialogsModel.objects.filter(Q(user1=self.request.user) | Q(user2=self.request.user)) \
-            .prefetch_related('user1', 'user2')
+        qs = DialogsModel.objects.filter(Q(user1_id=self.request.user.pk) | Q(user2_id=self.request.user.pk)) \
+            .select_related('user1', 'user2')
         return qs.order_by('-created')
 
     def render_to_response(self, context, **response_kwargs):

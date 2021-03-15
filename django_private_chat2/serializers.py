@@ -1,4 +1,4 @@
-from .models import MessageModel, DialogsModel
+from .models import MessageModel, DialogsModel, UserModel
 from datetime import datetime
 from typing import Callable, Optional
 from django.contrib.auth.models import AbstractBaseUser
@@ -26,17 +26,20 @@ def serialize_message_model(m: MessageModel, user_id):
 
 
 def serialize_dialog_model(m: DialogsModel, user_id):
-    other_user: AbstractBaseUser = m.user1 if m.user2.pk == user_id else m.user2
-    unread_count = MessageModel.get_unread_count_for_dialog_with_user(sender=other_user.pk, recipient=user_id)
-    last_message: Optional[MessageModel] = MessageModel.get_last_message_for_dialog(sender=other_user.pk, recipient=user_id)
-    last_message_ser = serialize_message_model(last_message,user_id) if last_message else None
+    username_field = UserModel.USERNAME_FIELD
+    other_user_pk, other_user_username = UserModel.objects.filter(pk=m.user1.pk).values_list('pk',username_field).first() \
+        if m.user2.pk == user_id else UserModel.objects.filter(pk=m.user2.pk).values_list('pk', username_field).first()
+    unread_count = MessageModel.get_unread_count_for_dialog_with_user(sender=other_user_pk, recipient=user_id)
+    last_message: Optional[MessageModel] = MessageModel.get_last_message_for_dialog(sender=other_user_pk,
+                                                                                    recipient=user_id)
+    last_message_ser = serialize_message_model(last_message, user_id) if last_message else None
     obj = {
         "id": m.id,
         "created": int(m.created.timestamp()),
         "modified": int(m.modified.timestamp()),
-        "other_user_id": str(other_user.pk),
+        "other_user_id": str(other_user_pk),
         "unread_count": unread_count,
-        "username": other_user.get_username(),
+        "username": other_user_username,
         "last_message": last_message_ser
     }
     return obj
