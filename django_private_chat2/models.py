@@ -15,40 +15,6 @@ from django.db.models import Q
 
 UserModel: AbstractBaseUser = get_user_model()
 
-
-@dataclasses.dataclass(frozen=True)
-class DialogUser:
-    id: uuid
-    was_online: Optional[datetime.datetime]
-    is_online: bool = False
-
-
-@dataclasses.dataclass(frozen=True)
-class Dialog:
-    id: str
-    creator: DialogUser
-    opponent: DialogUser
-
-    def __eq__(self, other) -> bool:
-        return (self.creator.id == other.opponent.id and self.opponent.id == other.creator.id) or (
-            self.creator.id == other.creator.id and self.opponent.id == other.opponent.id)
-
-
-@dataclasses.dataclass(frozen=True)
-class Message:
-    dialog_id: str
-    msg_id: int
-    data: bytes
-    sent_by: DialogUser
-    sent_at: datetime.datetime
-    was_read: bool
-
-
-@dataclasses.dataclass(frozen=True)
-class TextMessage(Message):
-    data: str
-
-
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return f"user_{instance.sender.pk}/{filename}"

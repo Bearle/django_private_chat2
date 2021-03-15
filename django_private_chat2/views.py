@@ -8,8 +8,6 @@ from django.views.generic import (
 )
 
 from .models import (
-    Dialog,
-    Message,
     MessageModel,
     DialogsModel
 )
