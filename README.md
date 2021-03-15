@@ -91,7 +91,7 @@ Frontend (example app) & backend
 2. New dialog support
 3. Onlines fetching on initial load
 4. Last message
-    1. In fetch
+    1. In fetch +
     2. In new dialog
     3. On arriving message
 5. Read / unread/ unread count
