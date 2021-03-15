@@ -6,19 +6,21 @@ It can also be used to develop the app in place.
 
 To run this example, follow these instructions:
 
-1. Navigate to the `example/example` directory
-2. Install the requirements for the package:
-		
-		pip install -r requirements.txt
-		
-3. Make and apply migrations
+1. Navigate to the directory with this README
+2. Create virtualenv  - Optional
 
-		python manage.py makemigrations
-		
-		python manage.py migrate
-		
-4. Run the server
+`virtualenv venv -p python3.9`
 
-		python manage.py runserver
+3. Install the requirements for the package:
+
+`pip install -r requirements.txt`
 		
-5. Access from the browser at `http://127.0.0.1:8000`
+4. Apply migrations
+		
+`python manage.py migrate`
+		
+5. Run the server
+
+`python manage.py runserver`
+		
+6. Access from the browser at `http://127.0.0.1:8000`

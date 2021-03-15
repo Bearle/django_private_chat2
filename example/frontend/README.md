@@ -10,8 +10,9 @@ The app is React.js SPA with business logic written in F#+Fable, compiled to JS 
 ## Preface:
 
 In order to run the app, you won't need this app explicitely.
-The app is built & shipped via main.css & main.js in the folder above (in static) and is used by Django in base.html template. 
+The app is built & shipped via main.css & main.js in the folder above (in static) and is used by Django in base.html template.
 
+Default backend address (hard-coded) is `http://127.0.0.1:8000`
 
 If you wish to build it yourself (or for development), read below.
 
