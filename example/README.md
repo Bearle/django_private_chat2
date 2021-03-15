@@ -9,7 +9,11 @@ To run this example, follow these instructions:
 1. Navigate to the directory with this README
 2. Create virtualenv  - Optional
 
-`virtualenv venv -p python3.9`
+```bash
+virtualenv venv -p python3.9
+source venv/bin/activate
+# venv\Scripts\activate on Windows
+```
 
 3. Install the requirements for the package:
 
