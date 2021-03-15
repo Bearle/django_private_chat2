@@ -104,7 +104,7 @@ Frontend (example app) & backend
 12. Search for dialog (username)
     1. + Frontend (local)
     2. Server based
-
+13. Fake data generator (to test & bench)
 Running Tests
 -------------
 

@@ -64,6 +64,7 @@ module AppTypes =
        other_user_id: string
        unread_count: int
        username: string
+       last_message: MessageModel option
       }
       static member Decoder: Decoder<DialogModel> =
           Decode.object (fun get ->
@@ -74,6 +75,7 @@ module AppTypes =
                   other_user_id = get.Required.Field "other_user_id" Decode.string
                   unread_count = get.Required.Field "unread_count" Decode.int
                   username = get.Required.Field "username" Decode.string
+                  last_message = get.Required.Field "last_message" (Decode.option MessageModel.Decoder)
               })
 
     type DialogsResponse =

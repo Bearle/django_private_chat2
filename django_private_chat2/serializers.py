@@ -1,6 +1,6 @@
 from .models import MessageModel, DialogsModel
 from datetime import datetime
-from typing import Callable
+from typing import Callable, Optional
 from django.contrib.auth.models import AbstractBaseUser
 import json
 
@@ -28,13 +28,15 @@ def serialize_message_model(m: MessageModel, user_id):
 def serialize_dialog_model(m: DialogsModel, user_id):
     other_user: AbstractBaseUser = m.user1 if m.user2.pk == user_id else m.user2
     unread_count = MessageModel.get_unread_count_for_dialog_with_user(sender=other_user.pk, recipient=user_id)
-    # TODO: add last message
+    last_message: Optional[MessageModel] = MessageModel.get_last_message_for_dialog(sender=other_user.pk, recipient=user_id)
+    last_message_ser = serialize_message_model(last_message,user_id) if last_message else None
     obj = {
         "id": m.id,
         "created": int(m.created.timestamp()),
         "modified": int(m.modified.timestamp()),
         "other_user_id": str(other_user.pk),
         "unread_count": unread_count,
-        "username": other_user.get_username()
+        "username": other_user.get_username(),
+        "last_message": last_message_ser
     }
     return obj

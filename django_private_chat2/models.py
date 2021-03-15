@@ -15,6 +15,7 @@ from django.db.models import Q
 
 UserModel: AbstractBaseUser = get_user_model()
 
+
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return f"user_{instance.sender.pk}/{filename}"
@@ -51,6 +52,7 @@ class DialogsModel(TimeStampedModel):
     def get_dialogs_for_user(user: AbstractBaseUser):
         return DialogsModel.objects.filter(Q(user1=user) | Q(user2=user)).values_list('user1__pk', 'user2__pk')
 
+
 class MessageModel(TimeStampedModel, SoftDeletableModel):
     id = models.BigAutoField(primary_key=True, verbose_name=_("Id"))
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_("Author"),
@@ -66,6 +68,11 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
     @staticmethod
     def get_unread_count_for_dialog_with_user(sender, recipient):
         return MessageModel.objects.filter(sender_id=sender, recipient_id=recipient, read=False).count()
+
+    @staticmethod
+    def get_last_message_for_dialog(sender, recipient):
+        return MessageModel.objects.filter(
+            Q(sender_id=sender, recipient_id=recipient) | Q(sender_id=recipient, recipient_id=sender)).first()
 
     def get_create_localtime(self):
         return localtime(self.created)

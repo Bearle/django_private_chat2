@@ -157,8 +157,8 @@ LOGGING = {
             'handlers': ['console'],
         }
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
+    # 'root': {
+    #     'handlers': ['console'],
+    #     'level': 'INFO',
+    # },
 }

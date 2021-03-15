@@ -183,6 +183,10 @@ let fetchDialogs() =
     |> Promise.mapResult (fun x ->
         x.data
         |> Array.map (fun dialog ->
+            let subtitleText = dialog.last_message
+                               |> Option.map (fun x -> if x.out then "You: " + x.text else x.text)
+                               |> Option.defaultValue ""
+
             {
                 id = dialog.other_user_id
                 avatar = getPhotoString dialog.other_user_id None
@@ -191,8 +195,8 @@ let fetchDialogs() =
                 statusColorType = None
                 alt = dialog.username
                 title = dialog.username
-                date = dialog.created
-                subtitle = "subtitle"
+                date = dialog.last_message |> Option.map (fun x -> x.sent) |> Option.defaultValue dialog.created
+                subtitle = subtitleText
                 unread = dialog.unread_count
             })
     )
