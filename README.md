@@ -101,8 +101,8 @@ Frontend (example app) & backend
 9. Reply to message
 10. Delete message
 11. Forward message
-12. Search for chat
-    1. Frontend (local)
+12. Search for dialog (username)
+    1. + Frontend (local)
     2. Server based
 
 Running Tests

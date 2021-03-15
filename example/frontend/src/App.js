@@ -38,6 +38,7 @@ import {
 import loremIpsum from 'lorem-ipsum';
 
 const TYPING_TIMEOUT = 5000;
+
 export class App extends Component {
 
     constructor(props) {
@@ -64,6 +65,7 @@ export class App extends Component {
             socketConnectionState: 0,
             messageList: [],
             dialogList: [],
+            filteredDialogList: [],
             typingPKs: [],
             onlinePKs: [],
             selfInfo: null,
@@ -80,6 +82,20 @@ export class App extends Component {
         this.deb = throttle(() => {
             sendIsTypingMessage(this.state.socket)
         }, TYPING_TIMEOUT)
+
+        this.localSearch = throttle(() => {
+            let val = this.searchInput.input.value;
+            console.log("localSearch with '"+ val+ "'")
+            if (!val || 0 === val.length) {
+                this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
+            } else {
+                this.setState(prevState => ({
+                    filteredDialogList: prevState.dialogList.filter(function (el) {
+                        return el.title.toLowerCase().includes(val.toLowerCase())
+                    })
+                }))
+            }
+        }, 100)
     }
 
     componentDidMount() {
@@ -98,7 +114,7 @@ export class App extends Component {
             if (r.tag === 0) {
                 console.log("Fetched dialogs:")
                 console.log(r.fields[0])
-                this.setState({dialogList: r.fields[0]})
+                this.setState({dialogList: r.fields[0], filteredDialogList: r.fields[0]})
                 this.selectDialog(r.fields[0][0])
             } else {
                 console.log("Dialogs error:")
@@ -157,6 +173,7 @@ export class App extends Component {
             dialogList: prevState.dialogList.map(el => (el.id === item.id ?
                 {...el, statusColorType: 'encircle'} : {...el, statusColorType: undefined}))
         }))
+        this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
     }
 
     getSocketState() {
@@ -383,21 +400,28 @@ export class App extends Component {
         const that = this;
         setTimeout(() => {
             // We can't use 'l' here because it might have been changed in the meantime
-            console.log("Will remove "+ pk + " from typing pk-s")
+            console.log("Will remove " + pk + " from typing pk-s")
             let ll = that.state.typingPKs;
             const index = ll.indexOf(pk);
-            if (index > -1) { ll.splice(index, 1); }
+            if (index > -1) {
+                ll.splice(index, 1);
+            }
             that.setState({typingPKs: ll})
-        },TYPING_TIMEOUT);
+        }, TYPING_TIMEOUT);
     }
+
     changePKOnlineStatus(pk, onoff) {
-        console.log("Setting "+ pk + " to "+ onoff ? "online" : "offline" + " status")
+        console.log("Setting " + pk + " to " + onoff ? "online" : "offline" + " status")
         let onlines = this.state.onlinePKs;
-        if (onoff) {onlines.push(pk)} else {
+        if (onoff) {
+            onlines.push(pk)
+        } else {
             const index = onlines.indexOf(pk);
-            if (index > -1) { onlines.splice(index, 1); }
+            if (index > -1) {
+                onlines.splice(index, 1);
+            }
         }
-        this.setState({onlinePKs:onlines})
+        this.setState({onlinePKs: onlines})
         this.setState(prevState => ({
             dialogList: prevState.dialogList.map(function (el) {
                 if (el.id === pk) {
@@ -411,6 +435,7 @@ export class App extends Component {
                 }
             })
         }))
+        this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
     }
 
     addMessage(msg) {
@@ -464,12 +489,26 @@ export class App extends Component {
                                 <Input
                                     placeholder="Search..."
                                     ref={this.setSearchInputRef}
+                                    onKeyPress={(e) => {
+                                        if (e.charCode !== 13) {
+                                            this.localSearch();
+                                        }
+                                        if (e.charCode === 13) {
+                                            this.localSearch();
+                                            console.log("search invoke with" + this.searchInput.input.value)
+                                            e.preventDefault();
+                                            return false;
+                                        }
+                                    }}
                                     rightButtons={
                                         <div>
                                             <Button
                                                 type='transparent'
                                                 color='black'
-                                                onClick={() => console.log("search invoke with" + this.searchInput.input.value)}
+                                                onClick={() => {
+                                                    this.localSearch();
+                                                    console.log("search invoke with" + this.searchInput.input.value);
+                                                }}
                                                 icon={{
                                                     component: <FaSearch/>,
                                                     size: 18
@@ -487,7 +526,7 @@ export class App extends Component {
                                 />
 
                                 <ChatList onClick={(item, i, e) => this.selectDialog(item)}
-                                          dataSource={this.state.dialogList}/>
+                                          dataSource={this.state.filteredDialogList}/>
                             </span>
 
                         }
@@ -501,10 +540,10 @@ export class App extends Component {
                     <ToastContainer/>
                     <ChatItem  {...this.state.selectedDialog} date={null} unread={0}
                                statusColor={
-                                   this.state.selectedDialog && this.state.onlinePKs.includes(this.state.selectedDialog.id) ? "lightgreen": ""
+                                   this.state.selectedDialog && this.state.onlinePKs.includes(this.state.selectedDialog.id) ? "lightgreen" : ""
                                }
                                subtitle={
-                                   this.state.selectedDialog && this.state.typingPKs.includes(this.state.selectedDialog.id) ? "typing...": ""
+                                   this.state.selectedDialog && this.state.typingPKs.includes(this.state.selectedDialog.id) ? "typing..." : ""
                                }/>
                     <MessageList
                         className='message-list'
