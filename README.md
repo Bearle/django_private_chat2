@@ -53,19 +53,29 @@ Features
 __Django-related__
 
 -:white_check_mark: Fully-functional example app
+
 -:white_check_mark: Uses Django admin
+
 -:white_check_mark: Supports pluggable User model (and accounts for non-integer primary keys, too)
+
 -:white_check_mark: Doesn't require Django Rest Framework (views are based off django.views.generic)
+
 -:white_check_mark: Configurable via settings
+
 -:white_check_mark: Fully translatable 
 
 __Functionality-related__
 
 -:white_check_mark: Soft deletable messages
+
 -:white_check_mark: Read/unread messages
+
 -:white_check_mark: Random id (send message first, write to database later)
+
 -:white_check_mark: Supports text & file messages
--:white_check_mark: Gracefully handles errors 
+
+-:white_check_mark: Gracefully handles errors
+
 -:white_check_mark: Support 'typing' statuses
 
 ... and more
