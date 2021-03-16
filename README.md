@@ -88,7 +88,9 @@ Frontend (example app) & backend
 1. Pagination support
     1. For messages 
     2. For dialogs
-2. Example app only - users list endpoint & UI
+2. Example app only - user list
+    1. + Endpoint
+    2. UI
 3. New dialog support
 4. Onlines fetching on initial load
 5. Last message
