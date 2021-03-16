@@ -140,6 +140,8 @@ let backendUrl = "http://127.0.0.1:8000"
 let messagesEndpoint = sprintf "%s/messages/" backendUrl
 let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
 let selfEndpoint = sprintf "%s/self/" backendUrl
+let usersEndpoint = sprintf "%s/users/" backendUrl
+
 
 let fetchSelfInfo() =
     promise {
@@ -148,6 +150,17 @@ let fetchSelfInfo() =
         | Result.Ok r ->
             let! text = r.text()
             let decoded = Decode.fromString SelfInfoResponse.Decoder text
+            return decoded
+        | Result.Error e -> return Result.Error e.Message
+    }
+
+let fetchUsersList() =
+    promise {
+        let! resp = tryFetch usersEndpoint []
+        match resp with
+        | Result.Ok r ->
+            let! text = r.text()
+            let decoded = Decode.fromString (Decode.array SelfInfoResponse.Decoder) text
             return decoded
         | Result.Error e -> return Result.Error e.Message
     }

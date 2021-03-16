@@ -18,7 +18,7 @@ import {
     Popup,
 } from 'react-chat-elements';
 import throttle from 'lodash.throttle';
-import {FaSearch, FaComments, FaEdit, FaSquare, FaTimesCircle} from 'react-icons/fa';
+import {FaSearch, FaComments, FaWindowClose, FaEdit, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
@@ -30,6 +30,7 @@ import {
     filterMessagesForDialog,
     fetchDialogs,
     fetchMessages,
+    fetchUsersList,
     sendIsTypingMessage,
 } from "../fs-src/App.fs.js"
 
@@ -66,6 +67,9 @@ export class App extends Component {
 
         this.state = {
             socketConnectionState: 0,
+            showNewChatPopup: false,
+            newChatChosen: null,
+            usersDataLoading: false,
             messageList: [],
             dialogList: [],
             filteredDialogList: [],
@@ -88,7 +92,7 @@ export class App extends Component {
 
         this.localSearch = throttle(() => {
             let val = this.searchInput.input.value;
-            console.log("localSearch with '"+ val+ "'")
+            console.log("localSearch with '" + val + "'")
             if (!val || 0 === val.length) {
                 this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
             } else {
@@ -467,7 +471,7 @@ export class App extends Component {
             this.setState(prevState => ({
                 dialogList: prevState.dialogList.map(function (el) {
                     if (el.id === msg.data.dialog_id) {
-                        console.log("Setting dialog "+ msg.data.dialog_id + " last message");
+                        console.log("Setting dialog " + msg.data.dialog_id + " last message");
                         return {...el, subtitle: getSubtitleTextFromMessageBox(msg)};
                     } else {
                         return el;
@@ -569,26 +573,65 @@ export class App extends Component {
                 <div
                     className='right-panel'>
                     <ToastContainer/>
+                    <Popup
+                        show={this.state.showNewChatPopup}
+                        header='New chat'
+                        headerButtons={[{
+                            type: 'transparent',
+                            color: 'black',
+                            text: 'close',
+                            icon: {
+                                component: <FaWindowClose/>,
+                                size: 18
+                            },
+                            onClick: () => {
+                                this.setState({showNewChatPopup: false})
+                            }
+                        }]}
+                        renderContent={() => {
+                            if (this.state.usersDataLoading) {
+                                return <div><p>Loading data...</p></div>
+                            } else {
+                                return <div><p>Users data loaded</p></div>
+                            }
+                        }}
+                        footerButtons={[{
+                            color: 'white',
+                            backgroundColor: 'lightgreen',
+                            text: "Hello!",
+                            disabled: this.state.newChatChosen !== null
+                        }]}/>
                     <Navbar left={
-                    <ChatItem  {...this.state.selectedDialog} date={null} unread={0}
-                               statusColor={
-                                   this.state.selectedDialog && this.state.onlinePKs.includes(this.state.selectedDialog.id) ? "lightgreen" : ""
-                               }
-                               subtitle={
-                                   this.state.selectedDialog && this.state.typingPKs.includes(this.state.selectedDialog.id) ? "typing..." : ""
-                               }
-                    />
+                        <ChatItem  {...this.state.selectedDialog} date={null} unread={0}
+                                   statusColor={
+                                       this.state.selectedDialog && this.state.onlinePKs.includes(this.state.selectedDialog.id) ? "lightgreen" : ""
+                                   }
+                                   subtitle={
+                                       this.state.selectedDialog && this.state.typingPKs.includes(this.state.selectedDialog.id) ? "typing..." : ""
+                                   }
+                        />
                     } right={
                         <Button
-                        type='transparent'
-                        color='black'
-                        onClick={() => {
-                            console.log("New chat invoked")
-                        }}
-                        icon={{
-                            component: <FaEdit/>,
-                            size: 24
-                        }}/>
+                            type='transparent'
+                            color='black'
+                            onClick={() => {
+                                this.setState({usersDataLoading: true})
+                                fetchUsersList().then((r) => {
+                                    this.setState({usersDataLoading: false})
+                                    if (r.tag === 0) {
+                                        console.log("Fetched users:")
+                                        console.log(r.fields[0])
+                                    } else {
+                                        console.log("Users error:")
+                                        toast.error(r.fields[0])
+                                    }
+                                })
+                                this.setState({showNewChatPopup: true})
+                            }}
+                            icon={{
+                                component: <FaEdit/>,
+                                size: 24
+                            }}/>
                     }/>
 
 
