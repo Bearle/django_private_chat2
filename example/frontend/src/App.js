@@ -21,6 +21,7 @@ import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle}
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
+    createNewDialogModelFromIncomingMessageBox,
     getSubtitleTextFromMessageBox,
     fetchSelfInfo,
     handleIncomingWebsocketMessage,
@@ -80,7 +81,7 @@ export class App extends Component {
         this.addPKToTyping = this.addPKToTyping.bind(this);
         this.changePKOnlineStatus = this.changePKOnlineStatus.bind(this);
 
-        this.deb = throttle(() => {
+        this.isTyping = throttle(() => {
             sendIsTypingMessage(this.state.socket)
         }, TYPING_TIMEOUT)
 
@@ -447,16 +448,33 @@ export class App extends Component {
         this.setState({
             messageList: list,
         });
-        this.setState(prevState => ({
-            dialogList: prevState.dialogList.map(function (el) {
-                if (el.id === msg.data.dialog_id) {
-                    console.log("Setting dialog "+ msg.data.dialog_id + " last message");
-                    return {...el, subtitle: getSubtitleTextFromMessageBox(msg)};
-                } else {
-                    return el;
-                }
-            })
-        }));
+        let doesntNeedLastMessageSet = false;
+        if (!msg.data.out) {
+            let dialogs = this.state.dialogList;
+            // TODO: new dialog - test
+            let hasDialogAlready = dialogs.some((e) => e.id === msg.data.dialog_id);
+            if (!hasDialogAlready) {
+                let d = createNewDialogModelFromIncomingMessageBox(msg)
+                dialogs.push(d);
+                doesntNeedLastMessageSet = true;
+                this.setState({
+                    dialogList: dialogs,
+                });
+            }
+        }
+        if (!doesntNeedLastMessageSet) {
+            this.setState(prevState => ({
+                dialogList: prevState.dialogList.map(function (el) {
+                    if (el.id === msg.data.dialog_id) {
+                        console.log("Setting dialog "+ msg.data.dialog_id + " last message");
+                        return {...el, subtitle: getSubtitleTextFromMessageBox(msg)};
+                    } else {
+                        return el;
+                    }
+                })
+            }));
+        }
+
         this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
     }
 
@@ -573,7 +591,7 @@ export class App extends Component {
                             if (e.charCode !== 13) {
                                 console.log('key pressed');
 
-                                this.deb();
+                                this.isTyping();
                             }
                             if (e.shiftKey && e.charCode === 13) {
                                 return true;

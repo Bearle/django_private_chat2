@@ -45,6 +45,20 @@ let createMessageBoxFromOutgoingTextMessage (text: string) (user_pk:string) (sel
         data = {dialog_id=user_pk;message_id=random_id;out=true}
     }
 
+let createNewDialogModelFromIncomingMessageBox (m: MessageBox) =
+    {
+    id = m.data.dialog_id
+    avatar = getPhotoString m.data.dialog_id None
+    avatarFlexible = true
+    statusColor = "lightgreen"
+    statusColorType = None
+    alt = m.title
+    title = m.title
+    date = m.date
+    subtitle = m.text
+    unread = 1
+    }
+
 type WSHandlingCallbacks =
     {
         addMessage: MessageBox -> unit
