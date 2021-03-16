@@ -1,6 +1,7 @@
 import React, {Component} from 'react';
 import 'react-chat-elements/dist/main.css';
 import 'react-toastify/dist/ReactToastify.css';
+import './App.css';
 import {ToastContainer, toast} from 'react-toastify';
 import {
     MessageBox,
@@ -17,7 +18,7 @@ import {
     Popup,
 } from 'react-chat-elements';
 import throttle from 'lodash.throttle';
-import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle} from 'react-icons/fa';
+import {FaSearch, FaComments, FaEdit, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
@@ -568,13 +569,29 @@ export class App extends Component {
                 <div
                     className='right-panel'>
                     <ToastContainer/>
+                    <Navbar left={
                     <ChatItem  {...this.state.selectedDialog} date={null} unread={0}
                                statusColor={
                                    this.state.selectedDialog && this.state.onlinePKs.includes(this.state.selectedDialog.id) ? "lightgreen" : ""
                                }
                                subtitle={
                                    this.state.selectedDialog && this.state.typingPKs.includes(this.state.selectedDialog.id) ? "typing..." : ""
-                               }/>
+                               }
+                    />
+                    } right={
+                        <Button
+                        type='transparent'
+                        color='black'
+                        onClick={() => {
+                            console.log("New chat invoked")
+                        }}
+                        icon={{
+                            component: <FaEdit/>,
+                            size: 24
+                        }}/>
+                    }/>
+
+
                     <MessageList
                         className='message-list'
                         lockable={true}
