@@ -88,25 +88,26 @@ Frontend (example app) & backend
 1. Pagination support
     1. For messages 
     2. For dialogs
-2. New dialog support
-3. Onlines fetching on initial load
-4. Last message
+2. Example app only - users list endpoint & UI
+3. New dialog support
+4. Onlines fetching on initial load
+5. Last message
     1. + In fetch
     2. In new dialog
     3. + On arriving message
-5. Read / unread/ unread count
-6. Last seen
-7. Send photo
-8. Send file
-9. Reply to message
-10. Delete message
-11. Forward message
-12. Search for dialog (username)
+6. Read / unread/ unread count
+7. Last seen
+8. Send photo
+9. Send file
+10. Reply to message
+11. Delete message
+12. Forward message
+13. Search for dialog (username)
     1. + Frontend (local)
     2. Server based
-13. Fake data generator (to test & bench)
-14. Cache dialogs (get_groups_to_add) - ?
-15. Move views to async views - ?
+14. Fake data generator (to test & bench)
+15. Cache dialogs (get_groups_to_add) - ?
+16. Move views to async views - ?
 
 
 Running Tests
