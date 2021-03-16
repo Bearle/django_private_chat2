@@ -91,7 +91,7 @@ Frontend (example app) & backend
 2. New dialog support
 3. Onlines fetching on initial load
 4. Last message
-    1. In fetch +
+    1. + In fetch
     2. In new dialog
     3. On arriving message
 5. Read / unread/ unread count
@@ -105,6 +105,10 @@ Frontend (example app) & backend
     1. + Frontend (local)
     2. Server based
 13. Fake data generator (to test & bench)
+14. Cache dialogs (get_groups_to_add) - ?
+15. Move views to async views - ?
+
+
 Running Tests
 -------------
 
