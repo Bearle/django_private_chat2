@@ -59,6 +59,7 @@ def get_user_by_pk(pk: str) -> Optional[AbstractBaseUser]:
 def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> MessageModel:
     return MessageModel.objects.create(text=text, sender=from_, recipient=to)
 
+
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         # TODO:
@@ -77,7 +78,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"User {self.user.pk} connected, sending 'user_went_online' to {dialogs} dialog groups")
             for d in dialogs:  # type: int
                 if str(d) != self.group_name:
-                    await self.channel_layer.group_send(str(d),{"type": "user_went_online", "user_pk": str(self.user.pk)})
+                    await self.channel_layer.group_send(str(d),
+                                                        {"type": "user_went_online", "user_pk": str(self.user.pk)})
         else:
             await self.close(code=4001)
 
@@ -87,13 +89,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Save user was_online
         # Notify other users that the user went offline
         if close_code != 4001 and getattr(self, 'user', None) is not None:
-            logger.info(f"User {self.user.pk} disconnected, removing channel {self.channel_name} from group {self.group_name}")
+            logger.info(
+                f"User {self.user.pk} disconnected, removing channel {self.channel_name} from group {self.group_name}")
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
             dialogs = await get_groups_to_add(self.user)
             logger.info(f"User {self.user.pk} disconnected, sending 'user_went_offline' to {dialogs} dialog groups")
             for d in dialogs:
                 await self.channel_layer.group_send(str(d), {"type": "user_went_offline", "user_pk": str(self.user.pk)})
-
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
         logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
@@ -108,8 +110,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 logger.info(f"User {self.user.pk} is typing, sending 'is_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
-                        await self.channel_layer.group_send(str(d),{"type": "is_typing",
-                                                                    "user_pk": str(self.user.pk)})
+                        await self.channel_layer.group_send(str(d), {"type": "is_typing",
+                                                                     "user_pk": str(self.user.pk)})
                 return None
             elif msg_type == MessageTypes.TextMessage:
                 data: MessageTypeTextMessage

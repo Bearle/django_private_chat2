@@ -9,6 +9,15 @@ open Thoth.Json
 open App.AppTypes
 open App.Utils
 
+let getSubtitleTextFromMessageModel(msg: MessageModel option) =
+    msg
+   |> Option.map (fun x -> if x.out then "You: " + x.text else x.text)
+   |> Option.defaultValue ""
+
+let getSubtitleTextFromMessageBox(msg: MessageBox option) =
+    msg
+   |> Option.map (fun x -> if x.data.out then "You: " + x.text else x.text)
+   |> Option.defaultValue ""
 
 let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage) =
     let avatar = getPhotoString message.sender (Some 150)
@@ -183,9 +192,6 @@ let fetchDialogs() =
     |> Promise.mapResult (fun x ->
         x.data
         |> Array.map (fun dialog ->
-            let subtitleText = dialog.last_message
-                               |> Option.map (fun x -> if x.out then "You: " + x.text else x.text)
-                               |> Option.defaultValue ""
 
             {
                 id = dialog.other_user_id
@@ -196,7 +202,7 @@ let fetchDialogs() =
                 alt = dialog.username
                 title = dialog.username
                 date = dialog.last_message |> Option.map (fun x -> x.sent) |> Option.defaultValue dialog.created
-                subtitle = subtitleText
+                subtitle = getSubtitleTextFromMessageModel dialog.last_message
                 unread = dialog.unread_count
             })
     )

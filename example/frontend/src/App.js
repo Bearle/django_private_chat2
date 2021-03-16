@@ -21,6 +21,7 @@ import {FaSearch, FaComments, FaWindowClose as FaClose, FaSquare, FaTimesCircle}
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
+    getSubtitleTextFromMessageBox,
     fetchSelfInfo,
     handleIncomingWebsocketMessage,
     sendOutgoingTextMessage,
@@ -446,6 +447,17 @@ export class App extends Component {
         this.setState({
             messageList: list,
         });
+        this.setState(prevState => ({
+            dialogList: prevState.dialogList.map(function (el) {
+                if (el.id === msg.data.dialog_id) {
+                    console.log("Setting dialog "+ msg.data.dialog_id + " last message");
+                    return {...el, subtitle: getSubtitleTextFromMessageBox(msg)};
+                } else {
+                    return el;
+                }
+            })
+        }));
+        this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
     }
 
     replaceMessageId(old_id, new_id) {
