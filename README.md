@@ -93,7 +93,7 @@ Frontend (example app) & backend
 4. Last message
     1. + In fetch
     2. In new dialog
-    3. On arriving message
+    3. + On arriving message
 5. Read / unread/ unread count
 6. Last seen
 7. Send photo
