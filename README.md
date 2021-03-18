@@ -90,12 +90,12 @@ Frontend (example app) & backend
     2. For dialogs
 2. Example app only - user list
     1. + Endpoint
-    2. UI
-3. New dialog support
+    2. + UI
+3. + New dialog support
 4. Onlines fetching on initial load
 5. Last message
     1. + In fetch
-    2. In new dialog
+    2. + In new dialog
     3. + On arriving message
 6. Read / unread/ unread count
 7. Last seen
@@ -110,6 +110,10 @@ Frontend (example app) & backend
 14. Fake data generator (to test & bench)
 15. Cache dialogs (get_groups_to_add) - ?
 16. Move views to async views - ?
+17. Add some sounds
+    1. New message
+    2. New dialog
+    3. Sent message received db_id
 
 
 Running Tests
