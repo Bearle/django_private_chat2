@@ -464,14 +464,18 @@ export class App extends Component {
                                 return true;
                             }
                             if (e.charCode === 13) {
-                                this.performSendingMessage()
-                                e.preventDefault();
+                                if (this.state.socket.readyState === 1) {
+                                    this.performSendingMessage()
+                                    e.preventDefault();
+
+                                }
                                 return false;
                             }
                         }}
                         rightButtons={
                             <Button
                                 text='Send'
+                                disabled={this.state.socket.readyState !== 1}
                                 onClick={() => this.performSendingMessage()}/>
                         }/>
                 </div>

@@ -157,7 +157,7 @@ Frontend (example app) & backend
     2. New dialog
     3. Sent message received db_id
 18. Optimize /messages/ endpoint
-
+19. Some tests
 Running Tests
 -------------
 
