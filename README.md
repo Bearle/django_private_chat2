@@ -131,14 +131,14 @@ Frontend (example app) & backend
     1. For messages 
     2. For dialogs
 2. Example app only - user list
-    1. + Endpoint
-    2. + UI
-3. + New dialog support
+    1. :white_check_mark: Endpoint
+    2. :white_check_mark: UI
+3. :white_check_mark: New dialog support
 4. Online's fetching on initial load
 5. Last message
-    1. + In fetch
-    2. + In new dialog
-    3. + On arriving message
+    1. :white_check_mark: In fetch
+    2. :white_check_mark: In new dialog
+    3. :white_check_mark: On arriving message
 6. Read / unread/ unread count
 7. Last seen
 8. Send photo
@@ -147,7 +147,7 @@ Frontend (example app) & backend
 11. Delete message
 12. Forward message
 13. Search for dialog (username)
-    1. + Frontend (local)
+    1. :white_check_mark: Frontend (local)
     2. Server based
 14. Fake data generator (to test & bench)
 15. Cache dialogs (get_groups_to_add) - ?
