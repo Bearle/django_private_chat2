@@ -92,6 +92,19 @@ module AppTypes =
                     }
                 )
 
+    type MessageTypeMessageRead =
+        {
+        message_id: int64
+        sender: string
+        receiver: string
+        }
+        static member Decoder: Decoder<MessageTypeMessageRead> =
+          Decode.object (fun get ->
+              {
+                  message_id=get.Required.Field "message_id" Decode.int64
+                  sender = get.Required.Field "sender" Decode.string
+                  receiver = get.Required.Field "receiver" Decode.string
+              })
     type MessageTypeTextMessage =
         {
         random_id: int64

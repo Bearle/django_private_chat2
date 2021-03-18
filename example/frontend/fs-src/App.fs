@@ -65,6 +65,7 @@ type WSHandlingCallbacks =
         replaceMessageId: int64 -> int64 -> unit
         addPKToTyping: string -> unit
         changePKOnlineStatus: string -> bool -> unit
+        setMessageIdAsRead: int64 -> unit
     }
 let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callbacks: WSHandlingCallbacks) =
     let res =
@@ -96,6 +97,11 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
                 printfn "Received MessageTypes.WentOffline - %s" message
                 Decode.fromString GenericUserPKMessage.Decoder message
                 |> Result.map (fun d -> callbacks.changePKOnlineStatus d.user_pk false)
+
+            | MessageTypes.MessageRead ->
+                printfn "Received MessageTypes.MessageRead - %s" message
+                Decode.fromString MessageTypeMessageRead.Decoder message
+                |> Result.map (fun d -> callbacks.setMessageIdAsRead d.message_id)
 
             | MessageTypes.ErrorOccured ->
                 printfn "Received MessageTypes.ErrorOccured - %s" message

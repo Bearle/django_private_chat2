@@ -85,6 +85,7 @@ export class App extends Component {
         this.replaceMessageId = this.replaceMessageId.bind(this);
         this.addPKToTyping = this.addPKToTyping.bind(this);
         this.changePKOnlineStatus = this.changePKOnlineStatus.bind(this);
+        this.setMessageIdAsRead = this.setMessageIdAsRead.bind(this);
 
         this.isTyping = throttle(() => {
             sendIsTypingMessage(this.state.socket)
@@ -161,7 +162,8 @@ export class App extends Component {
                 addMessage: that.addMessage,
                 replaceMessageId: that.replaceMessageId,
                 addPKToTyping: that.addPKToTyping,
-                changePKOnlineStatus: that.changePKOnlineStatus
+                changePKOnlineStatus: that.changePKOnlineStatus,
+                setMessageIdAsRead: that.setMessageIdAsRead
             });
             if (errMsg) {
                 toast.error(errMsg)
@@ -291,7 +293,19 @@ export class App extends Component {
                 }
             })
         }))
-        console.log(this.state)
+    }
+
+    setMessageIdAsRead(msg_id) {
+        console.log("Setting msg_id " + msg_id + " as read")
+        this.setState(prevState => ({
+            messageList: prevState.messageList.map(function (el) {
+                if (el.data.message_id.Equals(msg_id)) {
+                    return {...el, status: 'read'}
+                } else {
+                    return el
+                }
+            })
+        }))
     }
 
     performSendingMessage() {
@@ -445,7 +459,7 @@ export class App extends Component {
                     <MessageList
                         className='message-list'
                         lockable={true}
-                        downButtonBadge={10}
+                        downButtonBadge={ this.state.selectedDialog ? this.state.selectedDialog.unread : 0}
                         dataSource={filterMessagesForDialog(this.state.selectedDialog, this.state.messageList)}/>
 
                     <Input

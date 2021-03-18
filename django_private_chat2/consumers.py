@@ -65,6 +65,10 @@ def get_message_by_id(mid: int) -> Optional[MessageModel]:
     return MessageModel.objects.filter(id=mid).first()
 
 
+# @database_sync_to_async
+# def mark_message_as_read(mid: int, sender_pk: str, recipient_pk: str):
+#     return MessageModel.objects.filter(id__lte=mid,sender_id=sender_pk, recipient_id=recipient_pk).update(read=True)
+
 @database_sync_to_async
 def mark_message_as_read(mid: int):
     return MessageModel.objects.filter(id=mid).update(read=True)
@@ -163,6 +167,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             return ErrorTypes.InvalidMessageReadId, f"Message with id {mid} was not sent by {user_pk} to {self.group_name}"
                         else:
                             await mark_message_as_read(mid)
+                            # await mark_message_as_read(mid, sender_pk=user_pk, recipient_pk=self.group_name)
 
                 return None
             elif msg_type == MessageTypes.TextMessage:
