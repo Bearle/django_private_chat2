@@ -63,7 +63,6 @@ TEMPLATES = [
         },
     },
 ]
-# WSGI_APPLICATION = 'example.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/1.9/ref/settings/#databases
@@ -129,7 +128,9 @@ LOGIN_URL = '/admin/login/'
 ALLOWED_HOSTS = ['*']
 
 ASGI_APPLICATION = 'example.example.routing.application'
-# Uncomment this to try out RabbitMQ layer
+
+
+# Uncomment this to try out RabbitMQ layer - install channels_rabbitmq>=3.0.0 first
 # CHANNEL_LAYERS = {
 #     "default": {
 #         "BACKEND": "channels_rabbitmq.core.RabbitmqChannelLayer",
@@ -138,6 +139,8 @@ ASGI_APPLICATION = 'example.example.routing.application'
 #         },
 #     },
 # }
+
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer'
@@ -157,6 +160,8 @@ LOGGING = {
             'handlers': ['console'],
         }
     },
+    # Uncomment this to view django_private_chat2's logs
+
     # 'root': {
     #     'handlers': ['console'],
     #     'level': 'INFO',

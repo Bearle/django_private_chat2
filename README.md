@@ -15,18 +15,18 @@ Chat app for Django, powered by Django Channels, Websockets & Asyncio
 Documentation
 -------------
 
-The full documentation is at <https://django_private_chat2.readthedocs.io>.
+The full documentation **will be** at <https://django_private_chat2.readthedocs.io>.
 
 Quickstart
 ----------
 
-Install django\_private\_chat2:
+Install django_private_chat2:
 
     pip install django_private_chat2
 
-Add it to your \`INSTALLED\_APPS\`:
+Add it to your `INSTALLED_APPS`:
 
-``` {.sourceCode .python}
+```python
 INSTALLED_APPS = (
     ...
     'django_private_chat2.apps.DjangoPrivateChat2Config',
@@ -34,9 +34,9 @@ INSTALLED_APPS = (
 )
 ```
 
-Add django\_private\_chat2's URL patterns:
+Add django_private_chat2's URL patterns:
 
-``` {.sourceCode .python}
+```python
 from django_private_chat2 import urls as django_private_chat2_urls
 
 
@@ -46,6 +46,29 @@ urlpatterns = [
     ...
 ]
 ```
+
+Add django_private_chat2's websocket URLs to your `asgi.py`:
+```python
+
+django_asgi_app = get_asgi_application()
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+from django_private_chat2 import urls
+application = ProtocolTypeRouter({
+    "http": django_asgi_app,
+    "websocket": AuthMiddlewareStack(
+        URLRouter(urls.websocket_urlpatterns)
+    ),
+})
+
+```
+
+
+**Important:**
+
+django_private_chat2 doesn't provide any endpoint to fetch users (required to start new chat, for example)
+It's up to you to do so. The example app does it in `urls.py` so feel free to copy the handler from there if you wish.
+
 
 Features
 --------
@@ -80,6 +103,25 @@ __Functionality-related__
 
 ... and more
 
+
+Example app frontend features
+-----------------------------
+
+1. Auto reconnected websocket
+2. Toasts about errors & events
+3. Send text messages
+4. Search for users
+5. Create new chat with another user
+6. Online/offline status
+7. Realtime messaging via websocket
+8. Last message
+9. Auto-avatar (identicon) based on user id
+10. Connection status display
+11. `Typing...` status
+12. Message delivery status (sent, received, waiting, etc.)
+13. Message history
+14. Persistent chat list
+
 TODO 
 ----
 
@@ -92,7 +134,7 @@ Frontend (example app) & backend
     1. + Endpoint
     2. + UI
 3. + New dialog support
-4. Onlines fetching on initial load
+4. Online's fetching on initial load
 5. Last message
     1. + In fetch
     2. + In new dialog
@@ -114,7 +156,7 @@ Frontend (example app) & backend
     1. New message
     2. New dialog
     3. Sent message received db_id
-
+18. Optimize /messages/ endpoint
 
 Running Tests
 -------------
