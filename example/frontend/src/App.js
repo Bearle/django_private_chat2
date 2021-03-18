@@ -596,7 +596,10 @@ export class App extends Component {
                                 if (this.state.availableUsers.length === 0) {
                                     return <div><p>No users available</p></div>
                                 } else {
-                                    return <ChatList onClick={(item, i, e) => console.log(item)}
+                                    return <ChatList onClick={(item, i, e) =>
+                                        //TODO: add handler for new chat creation
+                                        console.log(item)
+                                    }
                                                      dataSource={this.state.availableUsers}/>
                                 }
 
