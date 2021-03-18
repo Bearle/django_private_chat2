@@ -33,6 +33,11 @@ class MessageTypeTextMessage(TypedDict):
     random_id: int
 
 
+class MessageTypeMessageRead(TypedDict):
+    user_pk: str
+    message_id: int
+
+
 class MessageTypes(enum.IntEnum):
     WentOnline = 1
     WentOffline = 2
@@ -53,6 +58,16 @@ def get_groups_to_add(u: AbstractBaseUser) -> Set[int]:
 @database_sync_to_async
 def get_user_by_pk(pk: str) -> Optional[AbstractBaseUser]:
     return UserModel.objects.filter(pk=pk).first()
+
+
+@database_sync_to_async
+def get_message_by_id(mid: int) -> Optional[MessageModel]:
+    return MessageModel.objects.filter(id=mid).first()
+
+
+@database_sync_to_async
+def mark_message_as_read(mid: int):
+    return MessageModel.objects.filter(id=mid).update(read=True)
 
 
 @database_sync_to_async
@@ -112,6 +127,43 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if str(d) != self.group_name:
                         await self.channel_layer.group_send(str(d), {"type": "is_typing",
                                                                      "user_pk": str(self.user.pk)})
+                return None
+            elif msg_type == MessageTypes.MessageRead:
+                data: MessageTypeMessageRead
+                if 'user_pk' not in data:
+                    return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
+                elif 'message_id' not in data:
+                    return ErrorTypes.MessageParsingError, "'message_id' not present in data"
+                elif not isinstance(data['user_pk'], str):
+                    return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
+                elif not isinstance(data['message_id'], int):
+                    return ErrorTypes.InvalidRandomId, "'message_id' should be an int"
+                elif data['message_id'] <= 0:
+                    return ErrorTypes.InvalidMessageReadId, "'message_id' should be > 0"
+                elif data['user_pk'] == self.group_name:
+                    return ErrorTypes.InvalidUserPk, "'user_pk' can't be self  (you can't mark self messages as read)"
+                else:
+                    user_pk = data['user_pk']
+                    mid = data['message_id']
+                    logger.info(
+                        f"Validation passed, marking msg from {user_pk} to {self.group_name} with id {mid} as read")
+                    await self.channel_layer.group_send(user_pk, {"type": "message_read",
+                                                                  "message_id": mid,
+                                                                  "sender": user_pk,
+                                                                  "receiver": self.group_name})
+                    recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
+                    logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+                    if not recipient:
+                        return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
+                    else:
+                        message: Optional[MessageModel] = await get_message_by_id(mid)
+                        if not message:
+                            return ErrorTypes.InvalidMessageReadId, f"Message with id {mid} does not exist"
+                        elif str(message.recipient.pk) != self.group_name or str(message.sender.pk) != user_pk:
+                            return ErrorTypes.InvalidMessageReadId, f"Message with id {mid} was not sent by {user_pk} to {self.group_name}"
+                        else:
+                            await mark_message_as_read(mid)
+
                 return None
             elif msg_type == MessageTypes.TextMessage:
                 data: MessageTypeTextMessage
@@ -201,6 +253,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
         #         'message': message
         #     }
         # )
+
+    async def message_read(self, event):
+        await self.send(
+            text_data=json.dumps({
+                'msg_type': MessageTypes.MessageRead,
+                'message_id': event['msd_id'],
+                'sender': event['sender'],
+                'receiver': event['receiver']
+            }))
 
     async def message_id_created(self, event):
         await self.send(
