@@ -46,9 +46,9 @@ module AppTypes =
                     }
                 )
 
-    type SelfInfoResponse =
+    type UserInfoResponse =
         { pk: string; username: string }
-        static member Decoder : Decoder<SelfInfoResponse> =
+        static member Decoder : Decoder<UserInfoResponse> =
             Decode.object
                 (fun get ->
                     { pk = get.Required.Field "pk" Decode.string

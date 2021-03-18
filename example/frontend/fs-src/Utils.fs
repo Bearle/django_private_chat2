@@ -1,11 +1,8 @@
 namespace App
 module Utils =
     open System
-    open Browser.Types
     open Fable.Core.JsInterop
     open Fable.Core
-    open Fetch
-    open Thoth.Json
 
     // https://stackoverflow.com/a/22429679
 

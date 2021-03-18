@@ -70,6 +70,7 @@ export class App extends Component {
             showNewChatPopup: false,
             newChatChosen: null,
             usersDataLoading: false,
+            availableUsers: [],
             messageList: [],
             dialogList: [],
             filteredDialogList: [],
@@ -592,7 +593,13 @@ export class App extends Component {
                             if (this.state.usersDataLoading) {
                                 return <div><p>Loading data...</p></div>
                             } else {
-                                return <div><p>Users data loaded</p></div>
+                                if (this.state.availableUsers.length === 0) {
+                                    return <div><p>No users available</p></div>
+                                } else {
+                                    return <ChatList onClick={(item, i, e) => console.log(item)}
+                                                     dataSource={this.state.availableUsers}/>
+                                }
+
                             }
                         }}
                         footerButtons={[{
@@ -616,11 +623,12 @@ export class App extends Component {
                             color='black'
                             onClick={() => {
                                 this.setState({usersDataLoading: true})
-                                fetchUsersList().then((r) => {
+                                fetchUsersList(this.state.dialogList).then((r) => {
                                     this.setState({usersDataLoading: false})
                                     if (r.tag === 0) {
                                         console.log("Fetched users:")
                                         console.log(r.fields[0])
+                                        this.setState({availableUsers:r.fields[0]})
                                     } else {
                                         console.log("Users error:")
                                         toast.error(r.fields[0])

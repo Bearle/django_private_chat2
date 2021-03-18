@@ -122,7 +122,7 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
 
 //let decodeError s  = Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string s ErrorDescription
 
-let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) (self_info: SelfInfoResponse option) =
+let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) (self_info: UserInfoResponse option) =
     printfn "Sending text message: '%A', user_pk:'%A'" text user_pk
     let randomId = generateRandomId()
     let data = [
@@ -149,21 +149,39 @@ let fetchSelfInfo() =
         match resp with
         | Result.Ok r ->
             let! text = r.text()
-            let decoded = Decode.fromString SelfInfoResponse.Decoder text
+            let decoded = Decode.fromString UserInfoResponse.Decoder text
             return decoded
         | Result.Error e -> return Result.Error e.Message
     }
 
-let fetchUsersList() =
+let fetchUsersList(existing: ChatItem array) =
+    let existingPks = existing |> Array.map (fun x -> x.id)
     promise {
         let! resp = tryFetch usersEndpoint []
         match resp with
         | Result.Ok r ->
             let! text = r.text()
-            let decoded = Decode.fromString (Decode.array SelfInfoResponse.Decoder) text
+            let decoded = Decode.fromString (Decode.array UserInfoResponse.Decoder) text
+
             return decoded
         | Result.Error e -> return Result.Error e.Message
     }
+    |> Promise.mapResult (fun x ->
+    x
+    |> Array.filter (fun dialog -> not (Array.contains dialog.pk existingPks))
+    |> Array.map (fun dialog ->
+        {
+            id = dialog.pk
+            avatar = getPhotoString dialog.pk None
+            avatarFlexible = true
+            statusColor = ""
+            statusColorType = None
+            alt = dialog.username
+            title = dialog.username
+            date = DateTimeOffset.Now
+            subtitle = ""
+            unread = 0
+        }))
 
 let fetchMessages() =
     promise {
