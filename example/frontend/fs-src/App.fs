@@ -144,6 +144,7 @@ let sendIsTypingMessage (sock: WebSocket) =
 
 let backendUrl = "http://127.0.0.1:8000"
 let messagesEndpoint = sprintf "%s/messages/" backendUrl
+let messagesForDialogEndpoint dialog_pk = sprintf "%s/messages/%s/" backendUrl dialog_pk
 let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
 let selfEndpoint = sprintf "%s/self/" backendUrl
 let usersEndpoint = sprintf "%s/users/" backendUrl
@@ -189,9 +190,11 @@ let fetchUsersList(existing: ChatItem array) =
             unread = 0
         }))
 
-let fetchMessages() =
+let fetchMessages(dialog_pk: string option) =
     promise {
-        let! resp = tryFetch messagesEndpoint []
+        let url = dialog_pk |> Option.map messagesForDialogEndpoint |> Option.defaultValue messagesEndpoint
+        printfn "Fetching messages from %s ..." url
+        let! resp = tryFetch url []
         match resp with
         | Result.Ok r ->
             let! text = r.text()
@@ -200,6 +203,7 @@ let fetchMessages() =
         | Result.Error e -> return Result.Error e.Message
     }
     |> Promise.mapResult (fun x ->
+
         x.data
         |> Array.map (fun message ->
             let t = match message.file with |None -> MessageBoxType.Text |Some _ -> MessageBoxType.File
@@ -222,7 +226,8 @@ let fetchMessages() =
                 data = {dialog_id=dialog_id;message_id=int64 message.id;out=message.out}
             })
         |> Array.sortBy (fun x -> x.date)
-        )
+    )
+
 let filterMessagesForDialog (d: ChatItem option) (messages: MessageBox [])=
     match d with
     | Some dialog -> messages |> Array.filter (fun m -> m.data.dialog_id = dialog.id)
@@ -231,6 +236,7 @@ let filterMessagesForDialog (d: ChatItem option) (messages: MessageBox [])=
 
 let fetchDialogs() =
     promise {
+        printfn "Fetching dialogs from %s ..." dialogsEndpoint
         let! resp = tryFetch dialogsEndpoint []
 
         match resp with
@@ -243,7 +249,6 @@ let fetchDialogs() =
     |> Promise.mapResult (fun x ->
         x.data
         |> Array.map (fun dialog ->
-
             {
                 id = dialog.other_user_id
                 avatar = getPhotoString dialog.other_user_id None
@@ -257,3 +262,26 @@ let fetchDialogs() =
                 unread = dialog.unread_count
             })
     )
+
+let fetchDialogsAndThenMessages(receiveDialogsCallback: ChatItem[] -> unit,
+                                receiveMessagesCallback: string -> MessageBox[] -> unit,
+                                errorCallback: string -> unit) =
+    promise {
+        let! dialogs = fetchDialogs()
+        printfn "Fetched dialogs"
+//        JS.console.log dialogs
+        match dialogs with
+        | Result.Ok ds ->
+            do receiveDialogsCallback ds
+//TODO: Try to make parallel
+            for d in ds do
+                let! msgs = fetchMessages (Some d.id)
+                match msgs with
+                | Result.Ok m ->
+                    printfn "Fetched messages for %s" d.id
+//                    JS.console.log m
+                    receiveMessagesCallback d.id m
+                | Result.Error e -> errorCallback(e)
+
+        | Result.Error e -> errorCallback(e)
+    } |> Promise.start

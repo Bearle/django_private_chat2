@@ -27,6 +27,7 @@ import {
     fetchSelfInfo,
     handleIncomingWebsocketMessage,
     sendOutgoingTextMessage,
+    fetchDialogsAndThenMessages,
     filterMessagesForDialog,
     fetchDialogs,
     fetchMessages,
@@ -41,7 +42,15 @@ import {
 import loremIpsum from 'lorem-ipsum';
 
 const TYPING_TIMEOUT = 5000;
-const chatItemSortingFunction = (a,b) => b.date - a.date;
+const chatItemSortingFunction = (a, b) => b.date - a.date;
+const getMessagesForCurrentDialog = (d, messages) => {
+    console.log("getMessagesForCurrentDialog");
+    if (d) {
+        return messages[d.id]
+    } else {
+        return []
+    }
+}
 export class App extends Component {
 
     constructor(props) {
@@ -70,7 +79,7 @@ export class App extends Component {
             newChatChosen: null,
             usersDataLoading: false,
             availableUsers: [],
-            messageList: [],
+            messageList: {},
             dialogList: [],
             filteredDialogList: [],
             typingPKs: [],
@@ -86,6 +95,9 @@ export class App extends Component {
         this.addPKToTyping = this.addPKToTyping.bind(this);
         this.changePKOnlineStatus = this.changePKOnlineStatus.bind(this);
         this.setMessageIdAsRead = this.setMessageIdAsRead.bind(this);
+        this.onFetchDialogs = this.onFetchDialogs.bind(this);
+        this.onFetchMessages = this.onFetchMessages.bind(this);
+
 
         this.isTyping = throttle(() => {
             sendIsTypingMessage(this.state.socket)
@@ -107,28 +119,29 @@ export class App extends Component {
     }
 
     componentDidMount() {
-        fetchMessages().then((r) => {
-            if (r.tag === 0) {
-                console.log("Fetched messages:")
-                console.log(r.fields[0])
-                this.setState({messageList: r.fields[0]})
-            } else {
-                console.log("Messages error:")
-                toast.error(r.fields[0])
-            }
-        })
-
-        fetchDialogs().then((r) => {
-            if (r.tag === 0) {
-                console.log("Fetched dialogs:")
-                console.log(r.fields[0])
-                this.setState({dialogList: r.fields[0], filteredDialogList: r.fields[0]})
-                this.selectDialog(r.fields[0][0])
-            } else {
-                console.log("Dialogs error:")
-                toast.error(r.fields[0])
-            }
-        })
+        fetchDialogsAndThenMessages(this.onFetchDialogs, this.onFetchMessages, toast.error)
+        // fetchMessages().then((r) => {
+        //     if (r.tag === 0) {
+        //         console.log("Fetched messages:")
+        //         console.log(r.fields[0])
+        //         this.setState({messageList: r.fields[0]})
+        //     } else {
+        //         console.log("Messages error:")
+        //         toast.error(r.fields[0])
+        //     }
+        // })
+        //
+        // fetchDialogs().then((r) => {
+        //     if (r.tag === 0) {
+        //         console.log("Fetched dialogs:")
+        //         console.log(r.fields[0])
+        //         this.setState({dialogList: r.fields[0], filteredDialogList: r.fields[0]})
+        //         this.selectDialog(r.fields[0][0])
+        //     } else {
+        //         console.log("Dialogs error:")
+        //         toast.error(r.fields[0])
+        //     }
+        // })
         fetchSelfInfo().then((r) => {
             if (r.tag === 0) {
                 console.log("Fetched selfInfo:")
@@ -175,6 +188,22 @@ export class App extends Component {
             console.log("websocket closed")
         }
     }
+
+    onFetchDialogs(dialogs) {
+        this.setState({dialogList: dialogs, filteredDialogList: dialogs})
+        this.selectDialog(dialogs[0])
+    }
+
+    onFetchMessages(dialog_id, messages) {
+        this.setState(prevState => ({
+            messageList: {                   // object that we want to update
+                ...prevState.messageList,   // keep all other key-value pairs
+                [dialog_id]: messages
+            }
+        }))
+    }
+
+
 
     selectDialog(item) {
         this.setState({selectedDialog: item})
@@ -254,7 +283,6 @@ export class App extends Component {
         let doesntNeedLastMessageSet = false;
         if (!msg.data.out) {
             let dialogs = this.state.dialogList;
-            // TODO: new dialog - test
             let hasDialogAlready = dialogs.some((e) => e.id === msg.data.dialog_id);
             if (!hasDialogAlready) {
                 let d = createNewDialogModelFromIncomingMessageBox(msg)
@@ -459,8 +487,8 @@ export class App extends Component {
                     <MessageList
                         className='message-list'
                         lockable={true}
-                        downButtonBadge={ this.state.selectedDialog ? this.state.selectedDialog.unread : 0}
-                        dataSource={filterMessagesForDialog(this.state.selectedDialog, this.state.messageList)}/>
+                        downButtonBadge={this.state.selectedDialog ? this.state.selectedDialog.unread : 0}
+                        dataSource={getMessagesForCurrentDialog(this.state.selectedDialog, this.state.messageList)}/>
 
                     <Input
                         placeholder="Type here to send a message."

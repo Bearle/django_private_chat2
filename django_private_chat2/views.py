@@ -27,8 +27,14 @@ class MessagesModelList(LoginRequiredMixin, ListView):
     paginate_by = getattr(settings, 'MESSAGES_PAGINATION', 500)
 
     def get_queryset(self):
-        qs = MessageModel.objects.filter(Q(recipient=self.request.user) |
-                                         Q(sender=self.request.user)).prefetch_related('sender', 'recipient')
+        if self.kwargs.get('dialog_with'):
+            qs = MessageModel.objects \
+                .filter(Q(recipient=self.request.user, sender=self.kwargs['dialog_with']) |
+                        Q(sender=self.request.user, recipient=self.kwargs['dialog_with'])) \
+                .select_related('sender', 'recipient')
+        else:
+            qs = MessageModel.objects.filter(Q(recipient=self.request.user) |
+                                             Q(sender=self.request.user)).prefetch_related('sender', 'recipient')
 
         return qs.order_by('-created')
 
