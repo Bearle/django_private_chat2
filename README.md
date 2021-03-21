@@ -11,6 +11,7 @@ New and improved  https://github.com/Bearle/django-private-chat
 
 Chat app for Django, powered by Django Channels, Websockets & Asyncio
 
+![screenshot](https://github.com/Bearle/django_private_chat2/blob/master/screenshots/screen.jpg?raw=true)
 
 Documentation
 -------------
