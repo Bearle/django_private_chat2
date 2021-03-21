@@ -121,6 +121,8 @@ Example app frontend features
 12. Message delivery status (sent, received, waiting, etc.)
 13. Message history
 14. Persistent chat list
+15. Read / unread messages
+16. Unread messages counters (updates when new messages are received)
 
 TODO 
 ----
@@ -139,7 +141,7 @@ Frontend (example app) & backend
     1. :white_check_mark: In fetch
     2. :white_check_mark: In new dialog
     3. :white_check_mark: On arriving message
-6. Read / unread/ unread count
+6. :white_check_mark: Read / unread/ unread count
 7. Last seen
 8. Send photo
 9. Send file
@@ -148,7 +150,7 @@ Frontend (example app) & backend
 12. Forward message
 13. Search for dialog (username)
     1. :white_check_mark: Frontend (local)
-    2. Server based
+    2. ~~Server based~~ - won't do, out of the scope of the project
 14. Fake data generator (to test & bench)
 15. Cache dialogs (get_groups_to_add) - ?
 16. Move views to async views - ?
@@ -158,6 +160,8 @@ Frontend (example app) & backend
     3. Sent message received db_id
 18. Optimize /messages/ endpoint
 19. Some tests
+
+
 Running Tests
 -------------
 
