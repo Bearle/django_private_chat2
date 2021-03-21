@@ -34,4 +34,5 @@ python manage.py loaddata example/fixtures/db.json
 `python manage.py runserver`
 		
 7. Access from the browser at `http://127.0.0.1:8000`
+   
    There are two example users: user1 and user2. They have the same password: pa$$word
