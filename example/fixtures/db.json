@@ -1,0 +1,90 @@
+[
+  {
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+      "password": "pbkdf2_sha256$216000$gWaFYPtKmRf3$3rnsYJY09EuL8fue3gtdF9L+FDNNM99xK2MJhq/c+Ok=",
+      "last_login": "2021-03-21T06:47:50.246Z",
+      "is_superuser": true,
+      "username": "user1",
+      "first_name": "",
+      "last_name": "",
+      "email": "test@example.com",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2021-03-21T06:46:43.162Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 2,
+    "fields": {
+      "password": "pbkdf2_sha256$216000$ElHxLUdhT7se$iuh190SImDpunAHguDOsp3MXXBBQHfFTZ0JO3FRHVlM=",
+      "last_login": "2021-03-21T06:49:25.958Z",
+      "is_superuser": true,
+      "username": "user2",
+      "first_name": "",
+      "last_name": "",
+      "email": "test@example.com",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2021-03-21T06:47:03.039Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "django_private_chat2.dialogsmodel",
+    "pk": 1,
+    "fields": {
+      "created": "2021-03-21T06:49:09.925Z",
+      "modified": "2021-03-21T06:49:09.925Z",
+      "user1": 1,
+      "user2": 2
+    }
+  },
+  {
+    "model": "django_private_chat2.messagemodel",
+    "pk": 1,
+    "fields": {
+      "created": "2021-03-21T06:49:09.921Z",
+      "modified": "2021-03-21T06:49:09.921Z",
+      "is_removed": false,
+      "sender": 1,
+      "recipient": 2,
+      "text": "Hey!",
+      "file": "",
+      "read": true
+    }
+  },
+  {
+    "model": "django_private_chat2.messagemodel",
+    "pk": 2,
+    "fields": {
+      "created": "2021-03-21T06:49:31.032Z",
+      "modified": "2021-03-21T06:49:31.032Z",
+      "is_removed": false,
+      "sender": 2,
+      "recipient": 1,
+      "text": "Hello!",
+      "file": "",
+      "read": false
+    }
+  },
+  {
+    "model": "django_private_chat2.messagemodel",
+    "pk": 3,
+    "fields": {
+      "created": "2021-03-21T06:49:33.302Z",
+      "modified": "2021-03-21T06:49:33.302Z",
+      "is_removed": false,
+      "sender": 2,
+      "recipient": 1,
+      "text": "How are you ?",
+      "file": "",
+      "read": false
+    }
+  }
+]

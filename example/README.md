@@ -19,12 +19,19 @@ source venv/bin/activate
 
 `pip install -r requirements.txt`
 		
-4. Apply migrations
+4. Go up a folder
+`cd ..`
+   
+5. Apply migrations
 		
-`python manage.py migrate`
+```bash
+python manage.py migrate
+python manage.py loaddata example/fixtures/db.json
+```
 		
-5. Run the server
+6. Run the server
 
 `python manage.py runserver`
 		
-6. Access from the browser at `http://127.0.0.1:8000`
+7. Access from the browser at `http://127.0.0.1:8000`
+   There are two example users: user1 and user2. They have the same password: pa$$word
