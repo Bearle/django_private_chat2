@@ -52,7 +52,7 @@ setup(
     long_description=history,
     author='Bearle',
     author_email='tech@bearle.ru',
-    url='https://github.com/delneg/django_private_chat2',
+    url='https://github.com/Bearle/django_private_chat2',
     packages=[
         'django_private_chat2',
     ],
