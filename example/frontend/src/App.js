@@ -32,6 +32,8 @@ import {
     fetchMessages,
     fetchUsersList,
     sendIsTypingMessage,
+    markMessagesForDialogAsRead,
+    sendMessageReadMessage
 } from "../fs-src/App.fs.js"
 
 import {
@@ -177,12 +179,14 @@ export class App extends Component {
     }
 
     selectDialog(item) {
+        console.log("Selecting dialog "+ item.id)
         this.setState({selectedDialog: item})
         this.setState(prevState => ({
             dialogList: prevState.dialogList.map(el => (el.id === item.id ?
                 {...el, statusColorType: 'encircle'} : {...el, statusColorType: undefined}))
         }))
         this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
+        markMessagesForDialogAsRead(this.state.socket,item,this.state.messageList,this.setMessageIdAsRead);
     }
 
     getSocketState() {
@@ -245,9 +249,14 @@ export class App extends Component {
 
     addMessage(msg) {
         console.log("Calling addMessage for ")
-        console.log(msg)
+
+        if (!msg.data.out && msg.data.message_id > 0 && this.state.selectedDialog && this.state.selectedDialog.id === msg.data.dialog_id) {
+            sendMessageReadMessage(this.state.socket,msg.data.dialog_id,msg.data.message_id)
+            msg.status = 'read'
+        }
         let list = this.state.messageList;
         list.push(msg);
+        console.log(msg);
         this.setState({
             messageList: list,
         });
@@ -286,8 +295,18 @@ export class App extends Component {
         this.setState(prevState => ({
             messageList: prevState.messageList.map(function (el) {
                 if (el.data.message_id.Equals(old_id)) {
-                    let new_status = el.data.out ? 'sent' : 'received'
-                    return {...el, data: {dialog_id: el.data.dialog_id, message_id: new_id}, status: new_status}
+                    let new_status = ''
+                    if (el.data.out) {
+                        new_status = 'sent'
+                    } else {
+                        if (prevState.selectedDialog && prevState.selectedDialog.id === el.data.dialog_id) {
+                            sendMessageReadMessage(prevState.socket,el.data.dialog_id,new_id)
+                            new_status = 'read'
+                        } else {
+                            new_status = 'received'
+                        }
+                    }
+                    return {...el, data: {dialog_id: el.data.dialog_id, message_id: new_id, out: el.data.out}, status: new_status}
                 } else {
                     return el
                 }
