@@ -1,4 +1,4 @@
-# invoke
-# twine
-# wheel
-# zest.releaser
+invoke
+twine
+wheel
+zest.releaser
