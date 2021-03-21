@@ -61,8 +61,12 @@ def get_user_by_pk(pk: str) -> Optional[AbstractBaseUser]:
 
 
 @database_sync_to_async
-def get_message_by_id(mid: int) -> Optional[MessageModel]:
-    return MessageModel.objects.filter(id=mid).first()
+def get_message_by_id(mid: int) -> Optional[Tuple[str, str]]:
+    msg: Optional[MessageModel] = MessageModel.objects.filter(id=mid).first()
+    if msg:
+        return str(msg.recipient.pk), str(msg.sender.pk)
+    else:
+        return None
 
 
 # @database_sync_to_async
@@ -160,10 +164,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if not recipient:
                         return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
                     else:
-                        message: Optional[MessageModel] = await get_message_by_id(mid)
-                        if not message:
+                        msg_res: Optional[Tuple[str, str]] = await get_message_by_id(mid)
+                        if not msg_res:
                             return ErrorTypes.InvalidMessageReadId, f"Message with id {mid} does not exist"
-                        elif str(message.recipient.pk) != self.group_name or str(message.sender.pk) != user_pk:
+                        elif msg_res[0] != self.group_name or msg_res[1] != user_pk:
                             return ErrorTypes.InvalidMessageReadId, f"Message with id {mid} was not sent by {user_pk} to {self.group_name}"
                         else:
                             await mark_message_as_read(mid)
@@ -263,7 +267,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(
             text_data=json.dumps({
                 'msg_type': MessageTypes.MessageRead,
-                'message_id': event['msd_id'],
+                'message_id': event['message_id'],
                 'sender': event['sender'],
                 'receiver': event['receiver']
             }))
