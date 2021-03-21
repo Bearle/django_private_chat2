@@ -142,6 +142,14 @@ let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) (
 let sendIsTypingMessage (sock: WebSocket) =
     sock.send (msgTypeEncoder MessageTypes.IsTyping [])
 
+let sendMessageReadMessage (sock: WebSocket) (user_pk: string) (message_id: int64) =
+    printfn "Sending 'read' message for message_id '%i', user_pk:'%A'" message_id user_pk
+    let data = [
+        "user_pk", Encode.string user_pk
+        "message_id", Encode.int (int32 message_id)
+    ]
+    sock.send (msgTypeEncoder MessageTypes.MessageRead data)
+
 let backendUrl = "http://127.0.0.1:8000"
 let messagesEndpoint = sprintf "%s/messages/" backendUrl
 let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
@@ -227,6 +235,14 @@ let filterMessagesForDialog (d: ChatItem option) (messages: MessageBox [])=
     match d with
     | Some dialog -> messages |> Array.filter (fun m -> m.data.dialog_id = dialog.id)
     | None -> Array.empty
+
+let markMessagesForDialogAsRead (sock:WebSocket) (d: ChatItem) (messages: MessageBox []) (msgReadCallback: int64 -> unit)=
+    filterMessagesForDialog (Some d) messages
+    |> Array.filter (fun y -> y.status <> MessageBoxStatus.Read && y.data.out = false && y.HasDbId() )
+    |> Array.iter (fun x ->
+        do msgReadCallback x.data.message_id
+        do sendMessageReadMessage sock d.id x.data.message_id
+    )
 
 
 let fetchDialogs() =
