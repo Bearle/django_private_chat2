@@ -1,11 +1,11 @@
 Django Private Chat2
 ======================
 
-![image](https://badge.fury.io/py/django_private_chat2.svg%0A%20:target:%20https://badge.fury.io/py/django_private_chat2)
+![https://badge.fury.io/py/django_private_chat2.svg](https://badge.fury.io/py/django_private_chat2)
 
-![image](https://travis-ci.org/Bearle/django_private_chat2.svg?branch=master%0A%20:target:%20https://travis-ci.org/Bearle/django_private_chat2)
+![https://travis-ci.org/Bearle/django_private_chat2.svg?branch=master](https://travis-ci.org/Bearle/django_private_chat2)
 
-![image](https://codecov.io/gh/Bearle/django_private_chat2/branch/master/graph/badge.svg%0A%20:target:%20https://codecov.io/gh/Bearle/django_private_chat2)
+![https://codecov.io/gh/Bearle/django_private_chat2/branch/master/graph/badge.svg](https://codecov.io/gh/Bearle/django_private_chat2)
 
 New and improved  https://github.com/Bearle/django-private-chat
 
