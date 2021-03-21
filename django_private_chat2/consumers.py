@@ -8,7 +8,6 @@ from django.conf import settings
 import logging
 import json
 import enum
-import random
 
 logger = logging.getLogger('django_private_chat2.consumers')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
@@ -47,6 +46,7 @@ class MessageTypes(enum.IntEnum):
     MessageRead = 6
     ErrorOccured = 7
     MessageIdCreated = 8
+    NewUnreadCount = 9
 
 
 @database_sync_to_async
@@ -76,6 +76,11 @@ def get_message_by_id(mid: int) -> Optional[Tuple[str, str]]:
 @database_sync_to_async
 def mark_message_as_read(mid: int):
     return MessageModel.objects.filter(id=mid).update(read=True)
+
+
+@database_sync_to_async
+def get_unread_count(sender, recipient) -> int:
+    return int(MessageModel.get_unread_count_for_dialog_with_user(sender, recipient))
 
 
 @database_sync_to_async
@@ -171,6 +176,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             return ErrorTypes.InvalidMessageReadId, f"Message with id {mid} was not sent by {user_pk} to {self.group_name}"
                         else:
                             await mark_message_as_read(mid)
+                            new_unreads = await get_unread_count(user_pk, self.group_name)
+                            await self.channel_layer.group_send(self.group_name,
+                                                                {"type": "new_unread_count", "sender": user_pk,
+                                                                 "unread_count": new_unreads})
                             # await mark_message_as_read(mid, sender_pk=user_pk, recipient_pk=self.group_name)
 
                 return None
@@ -223,6 +232,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         logger.info(f"Message with id {msg.id} saved, firing events to {user_pk} & {self.group_name}")
                         await self.channel_layer.group_send(user_pk, ev)
                         await self.channel_layer.group_send(self.group_name, ev)
+                        new_unreads = await get_unread_count(self.group_name, user_pk)
+                        await self.channel_layer.group_send(user_pk,
+                                                            {"type": "new_unread_count", "sender": self.group_name,
+                                                             "unread_count": new_unreads})
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
@@ -262,6 +275,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         #         'message': message
         #     }
         # )
+
+    async def new_unread_count(self, event):
+        await self.send(
+            text_data=json.dumps({
+                'msg_type': MessageTypes.NewUnreadCount,
+                'sender': event['sender'],
+                'unread_count': event['unread_count']
+            }))
 
     async def message_read(self, event):
         await self.send(

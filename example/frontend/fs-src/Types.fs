@@ -92,6 +92,18 @@ module AppTypes =
                     }
                 )
 
+    type MessageTypeNewUnreadCount =
+        {
+        sender: string
+        unread_count: int
+        }
+        static member Decoder: Decoder<MessageTypeNewUnreadCount> =
+          Decode.object (fun get ->
+              {
+                  sender = get.Required.Field "sender" Decode.string
+                  unread_count = get.Required.Field "unread_count" Decode.int
+              })
+
     type MessageTypeMessageRead =
         {
         message_id: int64
@@ -162,6 +174,7 @@ module AppTypes =
         | MessageRead = 6
         | ErrorOccured = 7
         | MessageIdCreated = 8
+        | NewUnreadCount = 9
 
     let msgTypeEncoder (t:MessageTypes) data =
         let d = ["msg_type", Encode.Enum.int t ] |> List.append data

@@ -43,7 +43,8 @@ import {
 import loremIpsum from 'lorem-ipsum';
 
 const TYPING_TIMEOUT = 5000;
-const chatItemSortingFunction = (a,b) => b.date - a.date;
+const chatItemSortingFunction = (a, b) => b.date - a.date;
+
 export class App extends Component {
 
     constructor(props) {
@@ -88,6 +89,8 @@ export class App extends Component {
         this.addPKToTyping = this.addPKToTyping.bind(this);
         this.changePKOnlineStatus = this.changePKOnlineStatus.bind(this);
         this.setMessageIdAsRead = this.setMessageIdAsRead.bind(this);
+        this.newUnreadCount = this.newUnreadCount.bind(this);
+
 
         this.isTyping = throttle(() => {
             sendIsTypingMessage(this.state.socket)
@@ -165,7 +168,8 @@ export class App extends Component {
                 replaceMessageId: that.replaceMessageId,
                 addPKToTyping: that.addPKToTyping,
                 changePKOnlineStatus: that.changePKOnlineStatus,
-                setMessageIdAsRead: that.setMessageIdAsRead
+                setMessageIdAsRead: that.setMessageIdAsRead,
+                newUnreadCount: that.newUnreadCount
             });
             if (errMsg) {
                 toast.error(errMsg)
@@ -179,14 +183,14 @@ export class App extends Component {
     }
 
     selectDialog(item) {
-        console.log("Selecting dialog "+ item.id)
+        console.log("Selecting dialog " + item.id)
         this.setState({selectedDialog: item})
         this.setState(prevState => ({
             dialogList: prevState.dialogList.map(el => (el.id === item.id ?
                 {...el, statusColorType: 'encircle'} : {...el, statusColorType: undefined}))
         }))
         this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
-        markMessagesForDialogAsRead(this.state.socket,item,this.state.messageList,this.setMessageIdAsRead);
+        markMessagesForDialogAsRead(this.state.socket, item, this.state.messageList, this.setMessageIdAsRead);
     }
 
     getSocketState() {
@@ -251,7 +255,7 @@ export class App extends Component {
         console.log("Calling addMessage for ")
 
         if (!msg.data.out && msg.data.message_id > 0 && this.state.selectedDialog && this.state.selectedDialog.id === msg.data.dialog_id) {
-            sendMessageReadMessage(this.state.socket,msg.data.dialog_id,msg.data.message_id)
+            sendMessageReadMessage(this.state.socket, msg.data.dialog_id, msg.data.message_id)
             msg.status = 'read'
         }
         let list = this.state.messageList;
@@ -263,7 +267,6 @@ export class App extends Component {
         let doesntNeedLastMessageSet = false;
         if (!msg.data.out) {
             let dialogs = this.state.dialogList;
-            // TODO: new dialog - test
             let hasDialogAlready = dialogs.some((e) => e.id === msg.data.dialog_id);
             if (!hasDialogAlready) {
                 let d = createNewDialogModelFromIncomingMessageBox(msg)
@@ -300,18 +303,44 @@ export class App extends Component {
                         new_status = 'sent'
                     } else {
                         if (prevState.selectedDialog && prevState.selectedDialog.id === el.data.dialog_id) {
-                            sendMessageReadMessage(prevState.socket,el.data.dialog_id,new_id)
+                            sendMessageReadMessage(prevState.socket, el.data.dialog_id, new_id)
                             new_status = 'read'
                         } else {
                             new_status = 'received'
                         }
                     }
-                    return {...el, data: {dialog_id: el.data.dialog_id, message_id: new_id, out: el.data.out}, status: new_status}
+                    return {
+                        ...el,
+                        data: {dialog_id: el.data.dialog_id, message_id: new_id, out: el.data.out},
+                        status: new_status
+                    }
                 } else {
                     return el
                 }
             })
         }))
+    }
+
+    newUnreadCount(dialog_id, count) {
+        console.log("Got new unread count " + count + " for dialog " + dialog_id)
+        this.setState(prevState => ({
+            dialogList: prevState.dialogList.map(function (el) {
+                if (el.id === dialog_id) {
+                    console.log("Setting new unread count " + count + " for dialog " + dialog_id)
+                    return {...el, unread: count};
+                } else {
+                    return el;
+                }
+            })
+        }));
+        this.setState(prevState => ({
+            selectedDialog: prevState.selectedDialog && prevState.selectedDialog.id === dialog_id ? {
+                ...prevState.selectedDialog,
+                unread: count
+            } : prevState.selectedDialog
+        }));
+        this.setState(prevState => ({filteredDialogList: prevState.dialogList}));
+
     }
 
     setMessageIdAsRead(msg_id) {
@@ -478,7 +507,7 @@ export class App extends Component {
                     <MessageList
                         className='message-list'
                         lockable={true}
-                        downButtonBadge={ this.state.selectedDialog ? this.state.selectedDialog.unread : 0}
+                        downButtonBadge={this.state.selectedDialog  && this.state.selectedDialog.unread > 0 ? this.state.selectedDialog.unread : ''}
                         dataSource={filterMessagesForDialog(this.state.selectedDialog, this.state.messageList)}/>
 
                     <Input

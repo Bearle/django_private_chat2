@@ -66,6 +66,7 @@ type WSHandlingCallbacks =
         addPKToTyping: string -> unit
         changePKOnlineStatus: string -> bool -> unit
         setMessageIdAsRead: int64 -> unit
+        newUnreadCount: string -> int -> unit
     }
 let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callbacks: WSHandlingCallbacks) =
     let res =
@@ -103,6 +104,10 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
                 Decode.fromString MessageTypeMessageRead.Decoder message
                 |> Result.map (fun d -> callbacks.setMessageIdAsRead d.message_id)
 
+            | MessageTypes.NewUnreadCount ->
+                printfn "Received MessageTypes.NewUnreadCount - %s" message
+                Decode.fromString MessageTypeNewUnreadCount.Decoder message
+                |> Result.map (fun d -> callbacks.newUnreadCount d.sender d.unread_count)
             | MessageTypes.ErrorOccured ->
                 printfn "Received MessageTypes.ErrorOccured - %s" message
                 let decoded = Decode.fromString MessageTypeErrorOccured.Decoder message
