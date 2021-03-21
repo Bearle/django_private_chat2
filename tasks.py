@@ -102,7 +102,7 @@ def release(c, bumpsize=''):
 
     import django_private_chat2
     c.run("python setup.py sdist bdist_wheel")
-    c.run("twine upload dist/*")
+    c.run("twine upload dist/* --verbose")
 
     c.run('git tag -a {version} -m "New version: {version}"'.format(version=django_private_chat2.__version__))
     c.run("git push --tags")

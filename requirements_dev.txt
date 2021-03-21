@@ -2,3 +2,4 @@ invoke
 twine
 wheel
 zest.releaser
+readme-renderer

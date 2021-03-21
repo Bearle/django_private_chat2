@@ -41,7 +41,7 @@ if sys.argv[-1] == 'tag':
     os.system("git push --tags")
     sys.exit()
 
-readme = open('README.rst').read()
+readme = open('README.md').read()
 history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 requirements = open('requirements.txt').readlines()
 
@@ -49,9 +49,9 @@ setup(
     name='django_private_chat2',
     version=version,
     description="""Your project description goes here""",
-    long_description=readme + '\n\n' + history,
-    author='Denis Bobrov',
-    author_email='delneg@yandex.ru',
+    long_description=history,
+    author='Bearle',
+    author_email='tech@bearle.ru',
     url='https://github.com/delneg/django_private_chat2',
     packages=[
         'django_private_chat2',

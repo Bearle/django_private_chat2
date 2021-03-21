@@ -5,7 +5,7 @@ Credits
 Development Lead
 ----------------
 
-* Denis Bobrov <delneg@yandex.ru>
+* Bearle <tech@bearle.ru>
 
 Contributors
 ------------
