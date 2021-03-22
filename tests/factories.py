@@ -8,6 +8,7 @@ from django.conf import settings
 from factory import Iterator
 from factory import LazyAttribute
 from factory import SubFactory
+from factory import Sequence
 from factory import lazy_attribute
 from factory.django import DjangoModelFactory, FileField
 from factory.fuzzy import FuzzyText, FuzzyInteger
@@ -26,7 +27,7 @@ class UserFactory(DjangoModelFactory):
     last_login = LazyAttribute(lambda x: faker.date_time_between(start_date="-1y", end_date="now",
                                                                  tzinfo=timezone(settings.TIME_ZONE)))
     is_superuser = Iterator([True, False])
-    username = LazyAttribute(lambda x: faker.text(max_nb_chars=15))
+    username = Sequence(lambda n: "user_%03d" % n)
     first_name = LazyAttribute(lambda x: faker.text(max_nb_chars=150))
     last_name = LazyAttribute(lambda x: faker.text(max_nb_chars=150))
     email = faker.email()
