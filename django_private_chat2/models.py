@@ -7,9 +7,6 @@ from django.utils.timezone import localtime
 from model_utils.models import TimeStampedModel, SoftDeletableModel, SoftDeletableManager
 from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth import get_user_model
-import dataclasses
-import uuid
-import datetime
 from typing import Optional, Any
 from django.db.models import Q
 
