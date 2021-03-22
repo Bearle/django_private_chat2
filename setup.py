@@ -23,10 +23,10 @@ def get_version(*file_paths):
 
 version = get_version("django_private_chat2", "__init__.py")
 
-
 if sys.argv[-1] == 'publish':
     try:
         import wheel
+
         print("Wheel version: ", wheel.__version__)
     except ImportError:
         print('Wheel library missing. Please run "pip install wheel"')
@@ -43,7 +43,6 @@ if sys.argv[-1] == 'tag':
 
 readme = open('README.md').read()
 history = open('HISTORY.rst').read().replace('.. :changelog:', '')
-requirements = open('requirements.txt').readlines()
 
 setup(
     name='django_private_chat2',
@@ -57,7 +56,7 @@ setup(
         'django_private_chat2',
     ],
     include_package_data=True,
-    install_requires=requirements,
+    install_requires=['django-model-utils', 'channels'],
     license="MIT",
     zip_safe=False,
     keywords='django_private_chat2',
