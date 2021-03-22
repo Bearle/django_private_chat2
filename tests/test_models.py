@@ -13,10 +13,10 @@ from django.test import TestCase
 from django_private_chat2 import models
 
 
-class TestDjango_private_chat2(TestCase):
+class MessageModelTests(TestCase):
 
     def setUp(self):
-        pass
+        print("tests work")
 
     def test_something(self):
         pass
