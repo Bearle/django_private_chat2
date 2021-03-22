@@ -5,4 +5,5 @@ tox>=3.2.3
 codecov>=2.1.11
 factory-boy>=3.2.0
 django_extensions>=3.1.1
+Faker>=6.6.2
 # Additional test requirements go here

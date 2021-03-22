@@ -72,8 +72,8 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
     @staticmethod
     def get_last_message_for_dialog(sender, recipient):
         return MessageModel.objects.filter(
-            Q(sender_id=sender, recipient_id=recipient) | Q(sender_id=recipient, recipient_id=sender))\
-            .select_related('sender','recipient').first()
+            Q(sender_id=sender, recipient_id=recipient) | Q(sender_id=recipient, recipient_id=sender)) \
+            .select_related('sender', 'recipient').first()
 
     def get_create_localtime(self):
         return localtime(self.created)

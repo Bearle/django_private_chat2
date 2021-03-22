@@ -13,22 +13,40 @@ from django.test import TestCase
 from django_private_chat2.models import DialogsModel, MessageModel
 from django.forms.models import model_to_dict
 from django.conf import settings
-from .factories import DialogsModelFactory, MessageModelFactory, UserFactory
+from .factories import DialogsModelFactory, MessageModelFactory, UserFactory, faker
 
 
 class MessageModelTests(TestCase):
 
     def setUp(self):
-        print("tests work")
+        UserFactory.create_batch(10)
+        self.msg1 = MessageModelFactory.create()
 
-    def test_something(self):
-        pass
+    def test_str(self):
+        self.assertEqual(str(self.msg1), str(self.msg1.pk))
+
+    def test_get_unread_count_for_dialog_with_user(self):
+        sender, recipient = UserFactory.create(), UserFactory.create()
+        num_unread = faker.random.randint(1, 20)
+        _ = MessageModelFactory.create_batch(num_unread, read=False, sender=sender, recipient=recipient)
+
+        self.assertEqual(MessageModel.get_unread_count_for_dialog_with_user(sender, recipient), num_unread)
+
+    def test_get_last_message_for_dialog(self):
+        sender, recipient = UserFactory.create(), UserFactory.create()
+        last_message = MessageModelFactory.create(sender=sender, recipient=recipient)
+
+        last_message1 = MessageModel.get_last_message_for_dialog(sender, recipient)
+        last_message2 = MessageModel.get_last_message_for_dialog(recipient, sender)
+
+        self.assertEqual(last_message, last_message1)
+        self.assertEqual(last_message, last_message2)
 
     def tearDown(self):
         pass
 
 
-class TestCaseDialogsModel(TestCase):
+class TestCaseDialogsModelGenerated(TestCase):
 
     def test_create(self):
         """
@@ -66,7 +84,7 @@ class TestCaseDialogsModel(TestCase):
         self.assertIsNotNone(dialogs_model.user2)
 
 
-class TestCaseMessageModel(TestCase):
+class TestCaseMessageModelGenerated(TestCase):
     def setUp(self):
         UserFactory.create_batch(15)
 
