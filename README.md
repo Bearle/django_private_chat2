@@ -202,5 +202,5 @@ Tools used in rendering this package:
 Paid support
 ------------
 
-If you wish to have professional from the authors of django_private_chat2, or simply hire Django experts to solve a particular problem,
+If you wish to have professional help from the authors of django_private_chat2, or simply hire Django experts to solve a particular problem,
 please contact us via email `tech` **at** `bearle.ru`
