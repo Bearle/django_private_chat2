@@ -12,7 +12,7 @@ from django.test import TestCase
 
 from django_private_chat2.models import DialogsModel, MessageModel
 from django.forms.models import model_to_dict
-from django.conf import settings
+
 from django.db import IntegrityError
 from .factories import DialogsModelFactory, MessageModelFactory, UserFactory, faker
 
