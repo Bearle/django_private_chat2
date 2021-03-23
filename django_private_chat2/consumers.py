@@ -2,13 +2,17 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import InMemoryChannelLayer
 from channels.db import database_sync_to_async
 from .models import MessageModel, DialogsModel, UserModel
-from typing import List, Set, Awaitable, Optional, Dict, Tuple, TypedDict
+from typing import List, Set, Awaitable, Optional, Dict, Tuple
 from django.contrib.auth.models import AbstractBaseUser
 from django.conf import settings
 import logging
 import json
 import enum
+import sys
 
+can_use_TypedDict = sys.version_info.major >=3 and sys.version_info.minor >= 8
+if can_use_TypedDict:
+    from typing import TypedDict
 logger = logging.getLogger('django_private_chat2.consumers')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 
@@ -26,15 +30,16 @@ ErrorDescription = Tuple[ErrorTypes, str]
 
 # TODO: add tx_id to distinguish errors for different transactions
 
-class MessageTypeTextMessage(TypedDict):
-    text: str
-    user_pk: str
-    random_id: int
+if can_use_TypedDict:
+    class MessageTypeTextMessage(TypedDict):
+        text: str
+        user_pk: str
+        random_id: int
 
 
-class MessageTypeMessageRead(TypedDict):
-    user_pk: str
-    message_id: int
+    class MessageTypeMessageRead(TypedDict):
+        user_pk: str
+        message_id: int
 
 
 class MessageTypes(enum.IntEnum):
@@ -142,7 +147,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                                                      "user_pk": str(self.user.pk)})
                 return None
             elif msg_type == MessageTypes.MessageRead:
-                data: MessageTypeMessageRead
+                if can_use_TypedDict:
+                    data: MessageTypeMessageRead
                 if 'user_pk' not in data:
                     return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
                 elif 'message_id' not in data:
@@ -184,7 +190,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
                 return None
             elif msg_type == MessageTypes.TextMessage:
-                data: MessageTypeTextMessage
+                if can_use_TypedDict:
+                    data: MessageTypeTextMessage
                 if 'text' not in data:
                     return ErrorTypes.MessageParsingError, "'text' not present in data"
                 elif 'user_pk' not in data:
