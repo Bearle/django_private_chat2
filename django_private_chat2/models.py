@@ -27,7 +27,7 @@ class DialogsModel(TimeStampedModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['user1', 'user2'], name='Unique dialog')
+            models.UniqueConstraint(fields=(('user1', 'user2'), ('user2', 'user1')), name='Unique dialog')
         ]
         verbose_name = _("Dialog")
         verbose_name_plural = _("Dialogs")
@@ -71,9 +71,6 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
         return MessageModel.objects.filter(
             Q(sender_id=sender, recipient_id=recipient) | Q(sender_id=recipient, recipient_id=sender)) \
             .select_related('sender', 'recipient').first()
-
-    def get_create_localtime(self):
-        return localtime(self.created)
 
     def __str__(self):
         return str(self.pk)

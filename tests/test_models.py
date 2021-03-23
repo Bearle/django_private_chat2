@@ -13,17 +13,28 @@ from django.test import TestCase
 from django_private_chat2.models import DialogsModel, MessageModel
 from django.forms.models import model_to_dict
 from django.conf import settings
+from django.db import IntegrityError
 from .factories import DialogsModelFactory, MessageModelFactory, UserFactory, faker
 
-
-class MessageModelTests(TestCase):
+class MessageAndDialogModelTests(TestCase):
 
     def setUp(self):
         UserFactory.create_batch(10)
         self.msg1 = MessageModelFactory.create()
 
-    def test_str(self):
+    def test_str_message(self):
         self.assertEqual(str(self.msg1), str(self.msg1.pk))
+
+    def test_str_dialog(self):
+        u1, u2 = UserFactory.create(), UserFactory.create()
+        dialog = DialogsModelFactory.create(user1=u1, user2=u2)
+        self.assertEqual(str(dialog), f"Dialog between {u1.pk}, {u2.pk}")
+
+    def test_dialog_unique(self):
+        u1, u2 = UserFactory.create(), UserFactory.create()
+        DialogsModelFactory.create(user1=u1, user2=u2)
+        DialogsModelFactory.create(user1=u2, user2=u1)
+        self.assertRaises(IntegrityError, DialogsModelFactory.create, user2=u1, user1=u2)
 
     def test_get_unread_count_for_dialog_with_user(self):
         sender, recipient = UserFactory.create(), UserFactory.create()
@@ -41,6 +52,13 @@ class MessageModelTests(TestCase):
 
         self.assertEqual(last_message, last_message1)
         self.assertEqual(last_message, last_message2)
+
+    def test_save_creates_dialog_if_not_exists(self):
+        before = DialogsModel.objects.count()
+        sender, recipient = UserFactory.create(), UserFactory.create()
+        MessageModelFactory.create(sender=sender, recipient=recipient)
+        after = DialogsModel.objects.count()
+        self.assertEqual(after, before + 1)
 
     def tearDown(self):
         pass
