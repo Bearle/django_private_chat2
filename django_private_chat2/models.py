@@ -26,9 +26,7 @@ class DialogsModel(TimeStampedModel):
                               related_name="+", db_index=True)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=(('user1', 'user2'), ('user2', 'user1')), name='Unique dialog')
-        ]
+        unique_together = (('user1', 'user2'), ('user2', 'user1'))
         verbose_name = _("Dialog")
         verbose_name_plural = _("Dialogs")
 
