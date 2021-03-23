@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db import IntegrityError
 from .factories import DialogsModelFactory, MessageModelFactory, UserFactory, faker
 
+
 class MessageAndDialogModelTests(TestCase):
 
     def setUp(self):
@@ -35,6 +36,13 @@ class MessageAndDialogModelTests(TestCase):
         DialogsModelFactory.create(user1=u1, user2=u2)
         DialogsModelFactory.create(user1=u2, user2=u1)
         self.assertRaises(IntegrityError, DialogsModelFactory.create, user2=u1, user1=u2)
+
+    def test_get_dialogs_for_user(self):
+        u1, u2 = UserFactory.create(), UserFactory.create()
+        DialogsModelFactory.create(user1=u1, user2=u2)
+        d = DialogsModel.get_dialogs_for_user(user=u1).first()
+        d2 = DialogsModel.get_dialogs_for_user(user=u2).first()
+        self.assertEqual(d, d2)
 
     def test_get_unread_count_for_dialog_with_user(self):
         sender, recipient = UserFactory.create(), UserFactory.create()
