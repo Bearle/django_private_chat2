@@ -70,6 +70,19 @@ application = ProtocolTypeRouter({
 django_private_chat2 doesn't provide any endpoint to fetch users (required to start new chat, for example)
 It's up to you to do so. The example app does it in `urls.py` so feel free to copy the handler from there if you wish.
 
+Support
+--------
+
+
+`django_private_chat2` is tested against python3.6, python3.7, python3.8, python3.9 with Django 3.0, Django 3.1 and Django 3.2.
+
+You can view the builds here:
+
+https://travis-ci.com/github/Bearle/django_private_chat2/builds/
+
+
+Please file an issue if you have any problems with any combination of the above. 
+
 
 Features
 --------
@@ -186,3 +199,8 @@ Tools used in rendering this package:
 -   [Cookiecutter](https://github.com/audreyr/cookiecutter)
 -   [cookiecutter-djangopackage](https://github.com/pydanny/cookiecutter-djangopackage)
 
+Paid support
+------------
+
+If you wish to have professional from the authors of django_private_chat2, or simply hire Django experts to solve a particular problem,
+please contact us via email `tech` **at** `bearle.ru`
