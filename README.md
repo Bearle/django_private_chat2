@@ -203,4 +203,4 @@ Paid support
 ------------
 
 If you wish to have professional help from the authors of django_private_chat2, or simply hire Django experts to solve a particular problem,
-please contact us via email `tech` **at** `bearle.ru`
+please contact us via email `tech` **at** `bearle.ru` or `Bearle` in telegram
