@@ -98,7 +98,7 @@ def release(c, bumpsize=''):
     if bumpsize:
         bumpsize = '--' + bumpsize
 
-    c.run("bumpversion {bump} --no-input".format(bump=bumpsize))
+    # c.run("bumpversion {bump} --no-input".format(bump=bumpsize))
 
     import django_private_chat2
     c.run("python setup.py sdist bdist_wheel")

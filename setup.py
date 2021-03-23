@@ -47,7 +47,7 @@ history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 setup(
     name='django_private_chat2',
     version=version,
-    description="""Your project description goes here""",
+    description="""Chat app for Django, powered by Django Channels, Websockets & Asyncio""",
     long_description=history,
     author='Bearle',
     author_email='tech@bearle.ru',
@@ -62,7 +62,9 @@ setup(
     keywords='django_private_chat2',
     classifiers=[
         'Development Status :: 3 - Alpha',
+        'Framework :: Django :: 3.0',
         'Framework :: Django :: 3.1',
+        'Framework :: Django :: 3.2',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
