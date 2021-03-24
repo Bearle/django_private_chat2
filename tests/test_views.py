@@ -42,5 +42,37 @@ class ViewsTests(TestCase):
         dialog = list(filter(lambda x: x.id == d['id'], dialogs))[0]
         self.assertEqual(d, serialize_dialog_model(dialog, self.user1.id))
 
+    def test_messages_view(self):
+        messages1 = MessageModelFactory.create_batch(250, sender=self.user1, recipient=self.user2)
+        messages2 = MessageModelFactory.create_batch(250, sender=self.user2, recipient=self.user1)
+        messages = messages1 + messages2
+        response = self.client1.get(reverse('django_private_chat2:all_messages_list'), follow=True)
+        content = json.loads(response.content)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content['pages'], 500 / settings.MESSAGES_PAGINATION)
+        self.assertEqual(len(content['data']), settings.MESSAGES_PAGINATION)
+
+        response = self.client2.get(reverse('django_private_chat2:all_messages_list'), follow=True)
+        content2 = json.loads(response.content)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content2['pages'], 500 / settings.MESSAGES_PAGINATION)
+        self.assertEqual(len(content2['data']), settings.MESSAGES_PAGINATION)
+
+        for m in messages2:
+            self.assertIn(serialize_message_model(m, self.user1.id), content['data'])
+            self.assertIn(serialize_message_model(m, self.user2.id), content2['data'])
+
+        # creating these messages to pollute the 'all' response
+        user3 = User.objects.create_user(username='user3', email='test3@example.com', password='top_secret')
+
+        MessageModelFactory.create_batch(250, sender=self.user1, recipient=user3)
+        response = self.client1.get(reverse('django_private_chat2:messages_list',
+                                            kwargs={"dialog_with": self.user2.id}),
+                                    follow=True)
+        content = json.loads(response.content)
+        self.assertEqual(response.status_code, 200)
+        for m in messages2:
+            self.assertIn(serialize_message_model(m, self.user1.id), content['data'])
+
     def tearDown(self):
         pass
