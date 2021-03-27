@@ -8,8 +8,8 @@ open NBomber.Plugins.Http.FSharp
 open Serilog
 open Thoth.Json.Net
 
-let f = Bogus.Faker();
-
+let f = Bogus.Faker()
+let rnd = Random()
 type UserInfoResponse =
         { pk: string; username: string }
         static member Decoder : Decoder<UserInfoResponse> =
@@ -27,7 +27,7 @@ let main argv =
 
     let backendUrl = "http://127.0.0.1:8000"
     let loginEndpoint = sprintf "%s/dumb_auth/" backendUrl
-    let messagesEndpoint = sprintf "%s/messages/" backendUrl
+    let messagesEndpoint user_pk = sprintf "%s/messages/%s" backendUrl user_pk
     let usersEndpoint = sprintf "%s/users/" backendUrl
     let selfEndpoint = sprintf "%s/self/" backendUrl
 
@@ -40,11 +40,10 @@ let main argv =
         let d = seq {("username", username);("password",password)} |> dict
         let content = new FormUrlEncodedContent(d)
 
-        printfn "Logging with %A" d
+
         Http.createRequest "POST" loginEndpoint
         |> Http.withBody(content)
         |> Http.withCheck(fun response ->
-            printfn "%A" response
             task {
                 let cookieValues = if response.Headers.Contains "Set-Cookie" then Some (response.Headers.GetValues("Set-Cookie")) else None
                 let cookie = cookieValues |> Option.map (fun x -> x |> Array.ofSeq |> Array.map getCookieValue)
@@ -53,6 +52,7 @@ let main argv =
 
                 match csrfToken, sessionId with
                 | Some token, Some i ->
+                    context.Logger.Information($"Logged in with {username}")
                     context.Data.["cookie"] <- $"csrftoken={token}; sessionid={i}"
                     return Response.Ok ()
                 | _ -> return Response.Fail("status code: " + response.StatusCode.ToString())
@@ -91,14 +91,38 @@ let main argv =
             })
     )
 
+    let choose_random_user_and_get_messages_step = HttpStep.create("choose_random_user_and_get_messages", fun context ->
+        let userId = (context.Data.["dialogIds"] |> string).Split(',')
+                     |> (fun x -> Array.item (rnd.Next(x.Length)) x)
 
 
-    Scenario.create "django_private_chat2_loadtest" [login_step;fetch_self_step;fetch_users_step]
+        Http.createRequest "GET" (messagesEndpoint userId)
+        |> Http.withHeader "Accept" "application/json"
+        |> Http.withHeader "Cookie" (string context.Data.["cookie"])
+        |> Http.withCheck(fun response -> task {
+                match response.IsSuccessStatusCode with
+                | true  ->
+                    context.Data.["userId"] <- userId
+
+                    return Response.Ok()
+                | false -> return Response.Fail()
+            })
+    )
+
+
+    let steps = [
+        login_step
+        fetch_self_step
+        fetch_users_step
+        choose_random_user_and_get_messages_step
+    ]
+
+    Scenario.create "django_private_chat2_loadtest" steps
 //    |> Scenario.withWarmUpDuration(seconds 1)
-    |> Scenario.withLoadSimulations [KeepConstant(1, seconds 1)]
+    |> Scenario.withLoadSimulations [KeepConstant(1, seconds 10)]
     |> NBomberRunner.registerScenario
     |> NBomberRunner.withLoggerConfig(fun () ->
-        LoggerConfiguration().MinimumLevel.Verbose()
+        LoggerConfiguration().MinimumLevel.Information()
     )
     |> NBomberRunner.run
 
