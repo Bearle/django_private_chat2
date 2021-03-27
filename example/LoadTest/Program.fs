@@ -21,6 +21,35 @@ type UserInfoResponse =
                       username = get.Required.Field "username" Decode.string
                     }
                 )
+type MessageTypes =
+        | WentOnline = 1
+        | WentOffline = 2
+        | TextMessage = 3
+        | FileMessage = 4
+        | IsTyping = 5
+        | MessageRead = 6
+        | ErrorOccured = 7
+        | MessageIdCreated = 8
+        | NewUnreadCount = 9
+
+let msgTypeEncoder (t:MessageTypes) data =
+    let d = ["msg_type", Encode.Enum.int t ] |> List.append data
+    Encode.object d |> Encode.toString 0
+
+let generateRandomId(): int64 = -(rnd.Next()) |> int64
+
+let sendOutgoingTextMessage (client: WebsocketClient) (text: string) (user_pk: string) =
+    let randomId = generateRandomId()
+    let data = [
+        "text", Encode.string text
+        "user_pk", Encode.string user_pk
+        "random_id", Encode.int (int32 randomId)
+    ]
+    client.Send (msgTypeEncoder MessageTypes.TextMessage data)
+
+let sendIsTypingMessage (sock: WebsocketClient) =
+    sock.Send (msgTypeEncoder MessageTypes.IsTyping [])
+
 
 [<EntryPoint>]
 let main argv =
@@ -138,6 +167,42 @@ let main argv =
     })
 
 
+    let send_typing_step = Step.create("ws_typing", fun context -> task {
+         let client = context.Data.["wsClient"] :?> WebsocketClient
+         context.Logger.Information($"[{client.Name}] Sending typing message...")
+         Threading.Tasks.Task.Run(fun _ -> sendIsTypingMessage client) |> ignore
+         if (not client.IsRunning) then
+            return Response.Fail()
+         else
+            return Response.Ok()
+    })
+
+    let send_message_step = Step.create("ws_send_message", fun context -> task {
+        let client = context.Data.["wsClient"] :?> WebsocketClient
+        let userId = context.Data.["userId"] |> string
+        let text = f.Lorem.Sentence()
+        context.Logger.Information($"[{client.Name}] Sending text message to {userId}")
+        Threading.Tasks.Task.Run(fun _ -> sendOutgoingTextMessage client text userId) |> ignore
+        if (not client.IsRunning) then
+            return Response.Fail()
+         else
+            return Response.Ok()
+    })
+
+
+
+
+    let typingPause = Step.createPause(fun () -> rnd.Next(500,2000) |> milliseconds)
+    let beforeNextMessagePause = Step.createPause(fun () -> rnd.Next(2000,5000) |> milliseconds)
+
+    let loopSteps = [
+        for _ in 1..100 do
+            yield send_typing_step
+            yield typingPause
+            yield send_message_step
+            yield beforeNextMessagePause
+    ]
+
 
     let steps = [
         login_step
@@ -145,11 +210,16 @@ let main argv =
         connect_step
         fetch_users_step
         choose_random_user_and_get_messages_step
-    ]
 
-    Scenario.create "django_private_chat2_loadtest" steps
+    ]
+    let allSteps = List.append steps loopSteps
+
+    Scenario.create "django_private_chat2_loadtest" allSteps
 //    |> Scenario.withWarmUpDuration(seconds 1)
-    |> Scenario.withLoadSimulations [KeepConstant(1, seconds 1)]
+//    |> Scenario.withLoadSimulations [KeepConstant(10, seconds 1)]
+    |> Scenario.withLoadSimulations [
+        InjectPerSec(rate = 100, during = seconds 10)
+    ]
     |> NBomberRunner.registerScenario
     |> NBomberRunner.withLoggerConfig(fun () ->
         LoggerConfiguration().MinimumLevel.Information()
