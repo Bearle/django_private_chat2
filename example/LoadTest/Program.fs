@@ -1,5 +1,5 @@
 open System
-open System.Threading.Tasks
+open System.Net.WebSockets
 open FSharp.Control.Tasks.V2.ContextInsensitive
 open NBomber.Contracts
 open NBomber.FSharp
@@ -7,6 +7,8 @@ open System.Net.Http
 open NBomber.Plugins.Http.FSharp
 open Serilog
 open Thoth.Json.Net
+open Websocket.Client
+
 
 let f = Bogus.Faker()
 let rnd = Random()
@@ -25,7 +27,9 @@ let main argv =
 
     use httpClient = new HttpClient()
 
-    let backendUrl = "http://127.0.0.1:8000"
+    let host = "127.0.0.1:8000"
+    let backendUrl = $"http://{host}"
+    let wsEndpoint = $"ws://{host}/chat_ws"
     let loginEndpoint = sprintf "%s/dumb_auth/" backendUrl
     let messagesEndpoint user_pk = sprintf "%s/messages/%s" backendUrl user_pk
     let usersEndpoint = sprintf "%s/users/" backendUrl
@@ -69,7 +73,8 @@ let main argv =
 
                 match decoded with
                 | Result.Ok d ->
-                    context.Data.["selfInfo"] <- $"{d.pk},{d.username}"
+                    context.Data.["selfPk"] <- d.pk
+                    context.Data.["selfUsername"] <- d.username
                     return Response.Ok()
                 | Result.Error _ -> return Response.Fail()
             })
@@ -109,17 +114,42 @@ let main argv =
             })
     )
 
+    let connect_step = Step.create("ws_connect", fun context -> task {
+        let url = Uri(wsEndpoint)
+        let ws_factory = Func<ClientWebSocket>(fun _ ->
+            let client = new ClientWebSocket()
+            client.Options.SetRequestHeader("Cookie",(string context.Data.["cookie"]))
+            client
+        )
+//        let exitEvent = new Threading.ManualResetEvent(false);
+        let client = new WebsocketClient(url,ws_factory)
+        client.Name <- (string context.Data.["selfUsername"])
+        client.ReconnectTimeout <- seconds 10
+        use _ = client.ReconnectionHappened
+                |> Observable.subscribe (fun x -> context.Logger.Information($"[{client.Name}] Reconnection happened of type {x.Type}"))
+        use _ = client.MessageReceived
+                |> Observable.subscribe (fun x -> context.Logger.Information($"[{client.Name}] Message received - {x}"))
+
+        do! client.Start()
+        context.Logger.Information($"[{client.Name}] Started.")
+        context.Data.["wsClient"] <- client
+
+        return Response.Ok()
+    })
+
+
 
     let steps = [
         login_step
         fetch_self_step
+        connect_step
         fetch_users_step
         choose_random_user_and_get_messages_step
     ]
 
     Scenario.create "django_private_chat2_loadtest" steps
 //    |> Scenario.withWarmUpDuration(seconds 1)
-    |> Scenario.withLoadSimulations [KeepConstant(1, seconds 10)]
+    |> Scenario.withLoadSimulations [KeepConstant(1, seconds 1)]
     |> NBomberRunner.registerScenario
     |> NBomberRunner.withLoggerConfig(fun () ->
         LoggerConfiguration().MinimumLevel.Information()
