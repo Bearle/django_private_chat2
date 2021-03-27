@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Bogus" Version="33.0.2" />
     <PackageReference Include="NBomber" Version="1.1.0" />
     <PackageReference Include="NBomber.Http" Version="1.1.1" />
     <PackageReference Include="Thoth.Json.Net" Version="5.0.0" />

@@ -8,6 +8,7 @@ open NBomber.Plugins.Http.FSharp
 open Serilog
 open Thoth.Json.Net
 
+let f = Bogus.Faker();
 
 type UserInfoResponse =
         { pk: string; username: string }
@@ -58,59 +59,49 @@ let main argv =
     use httpClient = new HttpClient()
 
     let backendUrl = "http://127.0.0.1:8000"
-    let loginEndpoint = sprintf "%s/admin/login/" backendUrl
+    let loginEndpoint = sprintf "%s/dumb_auth/" backendUrl
     let messagesEndpoint = sprintf "%s/messages/" backendUrl
     let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
     let selfEndpoint = sprintf "%s/self/" backendUrl
 
-
-    let get_csrf_cookie_step = HttpStep.create("get_csrf", fun context ->
-        Http.createRequest "GET" loginEndpoint
-        |> Http.withHeader "Accept" "application/json"
-        |> Http.withCheck(fun response ->
-            task {
-                let c = response.Headers
-                let cookieValues = if c.Contains "Set-Cookie" then Some (c.GetValues("Set-Cookie")) else None
-                let cookie = cookieValues |> Option.bind (fun x -> x |> Array.ofSeq |> Array.tryHead)
-                printfn "%A" cookie
-                let csrfToken = cookie |> Option.map (fun x -> x.[x.IndexOf('=')+1..x.IndexOf(';')-1])
-                match csrfToken with
-                | Some token -> return Response.Ok(token)
-                | None -> return Response.Fail()
-            })
-    )
+    let getCookieValue (s:string) =
+        s.[s.IndexOf('=')+1..s.IndexOf(';')-1]
 
     let login_step = HttpStep.create("login", fun context ->
 
-        let username,password = ("delneg","")
-        let csrfToken = context.GetPreviousStepResponse<string>()
-        let d = seq {("username", username);("password",password);("csrfmiddlewaretoken",csrfToken)} |> dict
+        let username,password = (f.Internet.UserName(),f.Internet.Password())
+        let d = seq {("username", username);("password",password)} |> dict
         let content = new FormUrlEncodedContent(d)
 
         printfn "Logging with %A" d
         Http.createRequest "POST" loginEndpoint
         |> Http.withBody(content)
-        |> Http.withHeader "Cookie" ("csrftoken=" + csrfToken)
         |> Http.withCheck(fun response ->
+            printfn "%A" response
             task {
-                let headers = response.Headers
-                printfn "%A" headers
-                return if response.IsSuccessStatusCode then Response.Ok()
-                       else Response.Fail("status code: " + response.StatusCode.ToString())
-            })
+                let cookieValues = if response.Headers.Contains "Set-Cookie" then Some (response.Headers.GetValues("Set-Cookie")) else None
+                let cookie = cookieValues |> Option.map (fun x -> x |> Array.ofSeq |> Array.map getCookieValue)
+                let csrfToken = cookie |> Option.bind (Array.tryItem 0)
+                let sessionId = cookie |> Option.bind (Array.tryItem 1)
 
+                match csrfToken, sessionId with
+                | Some token, Some i -> return Response.Ok ($"csrftoken={token}; sessionid={i}")
+                | _ -> return Response.Fail("status code: " + response.StatusCode.ToString())
+            })
     )
 
 
     let fetch_self_step = HttpStep.create("fetch_self", fun context ->
+        let cookie = context.GetPreviousStepResponse<string>()
+
         Http.createRequest "GET" selfEndpoint
-        |> Http.withHeader "Accept" "application/json"
+        |> Http.withHeader "Cookie" cookie
         |> Http.withCheck(fun response -> task {
                 let! json = response.Content.ReadAsStringAsync()
                 let decoded = Decode.fromString UserInfoResponse.Decoder json
 
                 match decoded with
-                | Result.Ok _ -> return Response.Ok()
+                | Result.Ok _ -> return Response.Ok(cookie)
                 | Result.Error _ -> return Response.Fail()
             })
     )
@@ -129,7 +120,7 @@ let main argv =
 
 
 
-    Scenario.create "django_private_chat2_loadtest" [get_csrf_cookie_step;login_step]
+    Scenario.create "django_private_chat2_loadtest" [login_step;fetch_self_step]
 //    |> Scenario.withWarmUpDuration(seconds 1)
     |> Scenario.withLoadSimulations [KeepConstant(1, seconds 1)]
     |> NBomberRunner.registerScenario
