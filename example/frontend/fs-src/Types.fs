@@ -56,6 +56,11 @@ module AppTypes =
                     }
                 )
 
+    type UploadResponse =
+        { url: string; id: string}
+        static member Decoder : Decoder<UploadResponse> =
+            Decode.object (fun get -> { url = get.Required.Field "url" Decode.string;id = get.Required.Field "id" Decode.string} )
+
     type DialogModel =
       {
        id: int

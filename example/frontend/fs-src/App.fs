@@ -4,6 +4,7 @@ open System
 open Browser.Types
 open Fable.Core.JsInterop
 open Fable.Core
+open Fable.Import
 open Fetch
 open Thoth.Json
 open App.AppTypes
@@ -161,6 +162,28 @@ let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
 let selfEndpoint = sprintf "%s/self/" backendUrl
 let usersEndpoint = sprintf "%s/users/" backendUrl
 
+let uploadEndpoint = sprintf "%s/upload/" backendUrl
+
+
+let uploadFile (f: FileList) (csrfToken: string) =
+    promise {
+        let data = Browser.Blob.FormData.Create()
+        data.append("file",f.[0])
+        let headers =  HttpRequestHeaders.Custom("X-CSRFToken", csrfToken) |> List.singleton |> requestHeaders
+        let props = [
+            RequestProperties.Method HttpMethod.POST
+            RequestProperties.Body (BodyInit.Case2 data)
+            headers
+        ]
+        let! resp = tryFetch uploadEndpoint props
+        match resp with
+        | Result.Ok r ->
+            let! text = r.text()
+            let decoded = Decode.fromString UploadResponse.Decoder text
+            return decoded
+        | Result.Error e -> return Result.Error e.Message
+
+    }
 
 let fetchSelfInfo() =
     promise {

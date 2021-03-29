@@ -18,10 +18,11 @@ import {
     Popup,
 } from 'react-chat-elements';
 import throttle from 'lodash.throttle';
-import {FaSearch, FaComments, FaWindowClose, FaEdit, FaSquare, FaTimesCircle} from 'react-icons/fa';
+import {FaSearch, FaComments, FaWindowClose, FaEdit, FaPaperclip, FaSquare, FaTimesCircle} from 'react-icons/fa';
 import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
+    uploadFile,
     createNewDialogModelFromIncomingMessageBox,
     getSubtitleTextFromMessageBox,
     fetchSelfInfo,
@@ -45,6 +46,21 @@ import loremIpsum from 'lorem-ipsum';
 const TYPING_TIMEOUT = 5000;
 const chatItemSortingFunction = (a, b) => b.date - a.date;
 
+function getCookie() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        let cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            let cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 export class App extends Component {
 
     constructor(props) {
@@ -62,6 +78,12 @@ export class App extends Component {
         this.setSearchInputRef = element => {
             this.searchInput = element;
         };
+
+        this.fileInput = null;
+        this.setFileInputRef = element => {
+            this.fileInput = element;
+        };
+
         this.clearSearchInput = () => {
             if (this.searchInput) this.searchInput.clear();
         };
@@ -80,6 +102,7 @@ export class App extends Component {
             onlinePKs: [],
             selfInfo: null,
             selectedDialog: null,
+            file: null,
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
         };
         //some js magic
@@ -90,6 +113,8 @@ export class App extends Component {
         this.changePKOnlineStatus = this.changePKOnlineStatus.bind(this);
         this.setMessageIdAsRead = this.setMessageIdAsRead.bind(this);
         this.newUnreadCount = this.newUnreadCount.bind(this);
+        this.triggerFileRefClick = this.triggerFileRefClick.bind(this);
+        this.handleFileInputChange = this.handleFileInputChange.bind(this);
 
 
         this.isTyping = throttle(() => {
@@ -370,6 +395,31 @@ export class App extends Component {
         }
     }
 
+    handleFileInputChange(e) {
+        console.log("Upload starting...");
+        console.log(e.target.files);
+
+        //TODO: set 'file uploading' state to true, show some indication of file upload in progress
+        uploadFile(e.target.files, getCookie()).then((r)=>{
+            if (r.tag === 0) {
+                console.log("Uploaded file :")
+                console.log(r.fields[0])
+                //TODO: send the actual message with uploaded file id
+                this.setState({
+                    file: r.fields[0]
+                })
+            } else {
+                console.log("File upload error")
+                toast.error(r.fields[0])
+            }
+        })
+
+    }
+
+    triggerFileRefClick() {
+        this.fileInput.click()
+    }
+
     render() {
         return (
             <div className='container'>
@@ -507,9 +557,11 @@ export class App extends Component {
                     <MessageList
                         className='message-list'
                         lockable={true}
-                        downButtonBadge={this.state.selectedDialog  && this.state.selectedDialog.unread > 0 ? this.state.selectedDialog.unread : ''}
+                        downButtonBadge={this.state.selectedDialog && this.state.selectedDialog.unread > 0 ? this.state.selectedDialog.unread : ''}
                         dataSource={filterMessagesForDialog(this.state.selectedDialog, this.state.messageList)}/>
 
+                    <input id='selectFile' hidden type="file" onChange={this.handleFileInputChange}
+                           ref={this.setFileInputRef}/>
                     <Input
                         placeholder="Type here to send a message."
                         defaultValue=""
@@ -534,6 +586,17 @@ export class App extends Component {
                                 return false;
                             }
                         }}
+                        leftButtons={
+                            <Button
+                                type='transparent'
+                                color='black'
+                                onClick={this.triggerFileRefClick}
+                                icon={{
+                                    component: <FaPaperclip/>,
+                                    size: 24
+                                }}
+                            />
+                        }
                         rightButtons={
                             <Button
                                 text='Send'
