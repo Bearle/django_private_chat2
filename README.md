@@ -143,7 +143,7 @@ TODO
 
 Frontend (example app) & backend
 
-1. Pagination support
+1. Pagination support on frontend
     1. For messages 
     2. For dialogs
 2. Example app only - user list
@@ -165,7 +165,7 @@ Frontend (example app) & backend
 13. Search for dialog (username)
     1. :white_check_mark: Frontend (local)
     2. ~~Server based~~ - won't do, out of the scope of the project
-14. Fake data generator (to test & bench)
+14. :white_check_mark: Fake data generator (to test & bench) - done via factories in tests
 15. Cache dialogs (get_groups_to_add) - ?
 16. Move views to async views - ?
 17. Add some sounds
@@ -173,7 +173,7 @@ Frontend (example app) & backend
     2. New dialog
     3. Sent message received db_id
 18. Optimize /messages/ endpoint
-19. Some tests
+19. :white_check_mark:Some tests
 
 
 Running Tests

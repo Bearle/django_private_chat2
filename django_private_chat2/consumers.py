@@ -272,16 +272,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
             logger.info(f"Will send error {error_data} to {self.group_name}")
             await self.send(text_data=json.dumps(error_data))
-        # message = text_data_json['message']
-        #
-        # # Send message to room group
-        # await self.channel_layer.group_send(
-        #     self.chat_group_name,
-        #     {
-        #         'type': 'recieve_group_message',
-        #         'message': message
-        #     }
-        # )
 
     async def new_unread_count(self, event):
         await self.send(
