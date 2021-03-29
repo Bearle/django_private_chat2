@@ -10,7 +10,7 @@ import json
 import enum
 import sys
 
-can_use_TypedDict = sys.version_info.major >=3 and sys.version_info.minor >= 8
+can_use_TypedDict = sys.version_info.major >= 3 and sys.version_info.minor >= 8
 if can_use_TypedDict:
     from typing import TypedDict
 logger = logging.getLogger('django_private_chat2.consumers')
@@ -26,7 +26,6 @@ class ErrorTypes(enum.IntEnum):
 
 
 ErrorDescription = Tuple[ErrorTypes, str]
-
 
 # TODO: add tx_id to distinguish errors for different transactions
 

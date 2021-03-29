@@ -9,17 +9,20 @@ from django.views.generic import (
 
 from .models import (
     MessageModel,
-    DialogsModel
+    DialogsModel,
+    UploadedFile
 )
 from .serializers import serialize_message_model, serialize_dialog_model
 from django.db.models import Q
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.core.paginator import Page, Paginator
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
+from django.urls import reverse_lazy
+from django.forms import ModelForm
 
 
 class MessagesModelList(LoginRequiredMixin, ListView):
@@ -85,3 +88,26 @@ class SelfInfoView(LoginRequiredMixin, DetailView):
             "pk": str(user.pk)
         }
         return JsonResponse(data, **response_kwargs)
+
+
+class UploadForm(ModelForm):
+    class Meta:
+        model = UploadedFile
+        fields = ['file']
+
+
+class UploadView(LoginRequiredMixin, CreateView):
+    http_method_names = ['post', ]
+    model = UploadedFile
+    form_class = UploadForm
+    fields = ['file', ]
+    success_url = reverse_lazy('django_private_chat2:fileupload')
+
+    def form_valid(self, form: UploadForm):
+        self.object = UploadedFile.objects.create(uploaded_by=self.request.user, file=form.cleaned_data['file'])
+        return HttpResponseRedirect(self.get_success_url())
+
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
+    #
+    #     return context
