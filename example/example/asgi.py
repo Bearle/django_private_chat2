@@ -1,7 +1,7 @@
 
 from django.core.asgi import get_asgi_application
 import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "example.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "example.settings_prod")
 django_asgi_app = get_asgi_application()
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack

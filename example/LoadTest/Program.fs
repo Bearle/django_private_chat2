@@ -196,7 +196,7 @@ let main argv =
     let beforeNextMessagePause = Step.createPause(fun () -> rnd.Next(2000,5000) |> milliseconds)
 
     let loopSteps = [
-        for _ in 1..100 do
+        for _ in 1..10 do
             yield send_typing_step
             yield typingPause
             yield send_message_step
@@ -206,19 +206,39 @@ let main argv =
 
     let steps = [
         login_step
+        beforeNextMessagePause
         fetch_self_step
         connect_step
         fetch_users_step
         choose_random_user_and_get_messages_step
-
+        send_typing_step
+        typingPause
+        send_message_step
+        beforeNextMessagePause
+        send_typing_step
+        typingPause
+        send_message_step
+        beforeNextMessagePause
+        send_typing_step
+        typingPause
+        send_message_step
+        beforeNextMessagePause
+        send_typing_step
+        typingPause
+        send_message_step
+        beforeNextMessagePause
+        send_typing_step
+        typingPause
+        send_message_step
+        beforeNextMessagePause
     ]
-    let allSteps = List.append steps loopSteps
-
-    Scenario.create "django_private_chat2_loadtest" allSteps
-//    |> Scenario.withWarmUpDuration(seconds 1)
-//    |> Scenario.withLoadSimulations [KeepConstant(10, seconds 1)]
+    Scenario.create "django_private_chat2_loadtest" steps
+    |> Scenario.withWarmUpDuration(seconds 30)
     |> Scenario.withLoadSimulations [
-        InjectPerSec(rate = 100, during = seconds 10)
+        RampConstant(copies = 10, during = seconds 10)
+        KeepConstant(copies = 10, during = seconds 10)
+        RampPerSec(rate = 10, during = seconds 10)
+        InjectPerSec(rate = 10, during = seconds 10)
     ]
     |> NBomberRunner.registerScenario
     |> NBomberRunner.withLoggerConfig(fun () ->
