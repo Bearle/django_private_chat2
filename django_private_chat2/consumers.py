@@ -10,9 +10,11 @@ import json
 import enum
 import sys
 
-can_use_TypedDict = sys.version_info.major >=3 and sys.version_info.minor >= 8
-if can_use_TypedDict:
+try:
     from typing import TypedDict
+except ImportError:
+    TypedDict = dict
+    
 logger = logging.getLogger('django_private_chat2.consumers')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 
@@ -30,16 +32,15 @@ ErrorDescription = Tuple[ErrorTypes, str]
 
 # TODO: add tx_id to distinguish errors for different transactions
 
-if can_use_TypedDict:
-    class MessageTypeTextMessage(TypedDict):
-        text: str
-        user_pk: str
-        random_id: int
+class MessageTypeTextMessage(TypedDict):
+    text: str
+    user_pk: str
+    random_id: int
 
 
-    class MessageTypeMessageRead(TypedDict):
-        user_pk: str
-        message_id: int
+class MessageTypeMessageRead(TypedDict):
+    user_pk: str
+    message_id: int
 
 
 class MessageTypes(enum.IntEnum):
