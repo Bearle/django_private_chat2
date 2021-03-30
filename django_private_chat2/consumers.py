@@ -29,6 +29,7 @@ class ErrorTypes(enum.IntEnum):
 
 ErrorDescription = Tuple[ErrorTypes, str]
 
+
 # TODO: add tx_id to distinguish errors for different transactions
 
 class MessageTypeTextMessage(TypedDict):
@@ -147,8 +148,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                                                      "user_pk": str(self.user.pk)})
                 return None
             elif msg_type == MessageTypes.MessageRead:
-                if can_use_TypedDict:
-                    data: MessageTypeMessageRead
+                data: MessageTypeMessageRead
                 if 'user_pk' not in data:
                     return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
                 elif 'message_id' not in data:
@@ -190,8 +190,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
                 return None
             elif msg_type == MessageTypes.TextMessage:
-                if can_use_TypedDict:
-                    data: MessageTypeTextMessage
+                data: MessageTypeTextMessage
                 if 'text' not in data:
                     return ErrorTypes.MessageParsingError, "'text' not present in data"
                 elif 'user_pk' not in data:
