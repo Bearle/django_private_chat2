@@ -16,7 +16,7 @@ def serialize_message_model(m: MessageModel, user_id):
         "sent": int(m.created.timestamp()),
         "edited": int(m.modified.timestamp()),
         "read": m.read,
-        "file": m.file.path if m.file else None,
+        "file": m.file.file.url if m.file else None,
         "sender": str(sender_pk),
         "recipient": str(m.recipient.pk),
         "out": is_out,

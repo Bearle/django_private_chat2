@@ -259,6 +259,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             await self.channel_layer.group_send(user_pk, {"type": "new_file_message",
                                                                           "db_id": msg.id,
                                                                           "file_url": file.file.url,
+                                                                          "file_name": file.file.name,
+                                                                          "file_size": file.file.size,
                                                                           "sender": self.group_name,
                                                                           "receiver": user_pk,
                                                                           "sender_username": self.sender_username})
@@ -381,6 +383,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'msg_type': MessageTypes.FileMessage,
                 "db_id": event['db_id'],
                 "file_url": event['file_url'],
+                "file_name": event['file_name'],
+                "file_size": event['file_size'],
                 "sender": event['sender'],
                 "receiver": event['receiver'],
                 "sender_username": event['sender_username'],

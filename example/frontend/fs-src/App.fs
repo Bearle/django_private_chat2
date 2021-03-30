@@ -30,7 +30,7 @@ let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage)
         status=MessageBoxStatus.Waiting
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
-        data = {dialog_id=message.sender;message_id=message.random_id;out=false}
+        data = {dialog_id=message.sender;message_id=message.random_id;out=false;status=None}
     }
 
 let createMessageBoxFromOutgoingTextMessage (text: string) (user_pk:string) (self_pk:string) (self_username: string) (random_id:int64)=
@@ -43,8 +43,9 @@ let createMessageBoxFromOutgoingTextMessage (text: string) (user_pk:string) (sel
         status=MessageBoxStatus.Waiting
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
-        data = {dialog_id=user_pk;message_id=random_id;out=true}
+        data = {dialog_id=user_pk;message_id=random_id;out=true;status=None}
     }
+
 
 let createNewDialogModelFromIncomingMessageBox (m: MessageBox) =
     {
@@ -144,6 +145,17 @@ let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) (
     ]
     sock.send (msgTypeEncoder MessageTypes.TextMessage data)
     self_info |> Option.map (fun x -> createMessageBoxFromOutgoingTextMessage text user_pk x.pk x.username randomId)
+
+let sendOutgoingFileMessage (sock: WebSocket) (file_id: string) (user_pk: string) (file_url: string) (self_info: UserInfoResponse option) =
+    printfn "Sending file message: '%s', user_pk:'%s'" file_id user_pk
+    let randomId = generateRandomId()
+    let data = [
+        "file_id", Encode.string file_id
+        "user_pk", Encode.string user_pk
+        "random_id", Encode.int (int32 randomId)
+    ]
+    sock.send (msgTypeEncoder MessageTypes.FileMessage data)
+//    self_info |> Option.map (fun x -> createMessageBoxFromOutgoingTextMessage text user_pk x.pk x.username randomId)
 
 let sendIsTypingMessage (sock: WebSocket) =
     sock.send (msgTypeEncoder MessageTypes.IsTyping [])
@@ -255,7 +267,7 @@ let fetchMessages() =
                 status=status
                 avatar=avatar
                 date=message.sent
-                data = {dialog_id=dialog_id;message_id=int64 message.id;out=message.out}
+                data = {dialog_id=dialog_id;message_id=int64 message.id;out=message.out;status=None}
             })
         |> Array.sortBy (fun x -> x.date)
         )

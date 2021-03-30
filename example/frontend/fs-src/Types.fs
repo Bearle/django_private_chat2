@@ -140,6 +140,28 @@ module AppTypes =
                   sender_username = get.Required.Field "sender_username" Decode.string
               })
 
+    type MessageTypeFileMessage =
+        {
+        db_id: int64
+        file_url: string
+        file_name: string
+        file_size: string
+        sender: string
+        receiver: string
+        sender_username: string
+        }
+        static member Decoder: Decoder<MessageTypeFileMessage> =
+          Decode.object (fun get ->
+              {
+                  db_id = get.Required.Field "db_id" Decode.int64
+                  file_url = get.Required.Field "file_url" Decode.string
+                  file_name = get.Required.Field "file_name" Decode.string
+                  file_size = get.Required.Field "file_size" Decode.string
+                  sender = get.Required.Field "sender" Decode.string
+                  receiver = get.Required.Field "receiver" Decode.string
+                  sender_username = get.Required.Field "sender_username" Decode.string
+              })
+
     type MessageTypeMessageIdCreated =
         { random_id: int64
           db_id: int64
@@ -156,6 +178,9 @@ module AppTypes =
         | TextMessageInvalid = 2
         | InvalidMessageReadId = 3
         | InvalidUserPk = 4
+        | InvalidRandomId = 5
+        | FileMessageInvalid = 6
+        | FileDoesNotExist = 7
 
     type ErrorDescription = ErrorTypes * string
 
@@ -210,10 +235,16 @@ module AppTypes =
         | Meeting
         | Audio
 
+    type MessageBoxDataStatus = {
+        click: bool
+        loading: float
+        download: bool
+    }
     type MessageBoxData = {
         dialog_id: string
         message_id: int64
         out: bool
+        status: MessageBoxDataStatus option
     }
     type MessageBox = {
         position: MessageBoxPosition

@@ -23,6 +23,7 @@ import {MdMenu} from 'react-icons/md';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import {
     uploadFile,
+    sendOutgoingFileMessage,
     createNewDialogModelFromIncomingMessageBox,
     getSubtitleTextFromMessageBox,
     fetchSelfInfo,
@@ -61,6 +62,7 @@ function getCookie() {
     }
     return cookieValue;
 }
+
 export class App extends Component {
 
     constructor(props) {
@@ -102,7 +104,6 @@ export class App extends Component {
             onlinePKs: [],
             selfInfo: null,
             selectedDialog: null,
-            file: null,
             socket: new ReconnectingWebSocket('ws://' + window.location.host + '/chat_ws')
         };
         //some js magic
@@ -400,14 +401,15 @@ export class App extends Component {
         console.log(e.target.files);
 
         //TODO: set 'file uploading' state to true, show some indication of file upload in progress
-        uploadFile(e.target.files, getCookie()).then((r)=>{
+        uploadFile(e.target.files, getCookie()).then((r) => {
             if (r.tag === 0) {
                 console.log("Uploaded file :")
                 console.log(r.fields[0])
-                //TODO: send the actual message with uploaded file id
-                this.setState({
-                    file: r.fields[0]
-                })
+                let user_pk = this.state.selectedDialog.id;
+                let uploadResp = r.fields[0];
+                let res = sendOutgoingFileMessage(this.state.socket, uploadResp.id, user_pk, uploadResp.url, this.state.selfInfo)
+                console.log("sendOutgoingFileMessage result:");
+                console.log(res);
             } else {
                 console.log("File upload error")
                 toast.error(r.fields[0])
