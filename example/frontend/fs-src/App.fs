@@ -30,7 +30,7 @@ let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage)
         status=MessageBoxStatus.Waiting
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
-        data = {dialog_id=message.sender;message_id=message.random_id;out=false;status=None}
+        data = {dialog_id=message.sender;message_id=message.random_id;out=false;status=None;size=None;uri=None}
     }
 
 let createMessageBoxFromOutgoingTextMessage (text: string) (user_pk:string) (self_pk:string) (self_username: string) (random_id:int64)=
@@ -43,7 +43,7 @@ let createMessageBoxFromOutgoingTextMessage (text: string) (user_pk:string) (sel
         status=MessageBoxStatus.Waiting
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
-        data = {dialog_id=user_pk;message_id=random_id;out=true;status=None}
+        data = {dialog_id=user_pk;message_id=random_id;out=true;status=None;size=None;uri=None}
     }
 
 
@@ -258,16 +258,27 @@ let fetchMessages() =
                 | false, false -> MessageBoxStatus.Received
             let avatar = getPhotoString message.sender (Some 150)
             let dialog_id = if message.out then message.recipient else message.sender
-
+            let dataStatus = message.file |> Option.map(fun _ -> {click=true;loading=1.0;download=false})
+            let size = message.file |> Option.map(fun x -> humanFileSize x.size)
+            let uri = message.file |> Option.map(fun x -> x.url)
+            let text =
+                match message.file with
+                | Some f -> f.name
+                | None -> message.text
             {
                 position=if message.out then MessageBoxPosition.Right else MessageBoxPosition.Left
                 ``type``=t
-                text = message.text
+                text = text
                 title=message.sender_username
                 status=status
                 avatar=avatar
                 date=message.sent
-                data = {dialog_id=dialog_id;message_id=int64 message.id;out=message.out;status=None}
+                data = {dialog_id=dialog_id
+                        message_id=int64 message.id
+                        out=message.out
+                        size=size
+                        uri=uri
+                        status=dataStatus}
             })
         |> Array.sortBy (fun x -> x.date)
         )
