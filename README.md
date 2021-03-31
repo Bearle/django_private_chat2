@@ -101,6 +101,9 @@ __Django-related__
 
 -:white_check_mark: Fully translatable 
 
+-:white_check_mark: Uses Django storage system & FileField for file uploads (swappable)
+
+
 __Functionality-related__
 
 -:white_check_mark: Soft deletable messages
@@ -114,6 +117,8 @@ __Functionality-related__
 -:white_check_mark: Gracefully handles errors
 
 -:white_check_mark: Support 'typing' statuses
+
+-:white_check_mark: Upload the file first, send the message later (async uploads) - potential for file ref re-use later
 
 ... and more
 
@@ -137,6 +142,7 @@ Example app frontend features
 14. Persistent chat list
 15. Read / unread messages
 16. Unread messages counters (updates when new messages are received)
+17. Send file messages (upload them to server)
 
 TODO 
 ----
@@ -158,7 +164,7 @@ Frontend (example app) & backend
 6. :white_check_mark: Read / unread/ unread count
 7. Last seen
 8. Send photo
-9. Send file
+9. :white_check_mark: Send file
 10. Reply to message
 11. Delete message
 12. Forward message
