@@ -2,6 +2,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import InMemoryChannelLayer
 from channels.db import database_sync_to_async
 from .models import MessageModel, DialogsModel, UserModel, UploadedFile
+from .serializers import serialize_file_model
 from typing import List, Set, Awaitable, Optional, Dict, Tuple
 from django.contrib.auth.models import AbstractBaseUser
 from django.conf import settings
@@ -258,9 +259,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # We don't need to send random_id here because we've already saved the file to db
                             await self.channel_layer.group_send(user_pk, {"type": "new_file_message",
                                                                           "db_id": msg.id,
-                                                                          "file_url": file.file.url,
-                                                                          "file_name": file.file.name,
-                                                                          "file_size": file.file.size,
+                                                                          "file": serialize_file_model(file),
                                                                           "sender": self.group_name,
                                                                           "receiver": user_pk,
                                                                           "sender_username": self.sender_username})
@@ -382,9 +381,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             text_data=json.dumps({
                 'msg_type': MessageTypes.FileMessage,
                 "db_id": event['db_id'],
-                "file_url": event['file_url'],
-                "file_name": event['file_name'],
-                "file_size": event['file_size'],
+                "file": event['file'],
                 "sender": event['sender'],
                 "receiver": event['receiver'],
                 "sender_username": event['sender_username'],

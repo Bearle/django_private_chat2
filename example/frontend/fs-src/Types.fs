@@ -7,14 +7,17 @@ module AppTypes =
 
 
     type MessageModelFile =
-        { url: string
+        { id: string
+          url: string
           name: string
           size: int
           }
         static member Decoder : Decoder<MessageModelFile> =
             Decode.object
                 (fun get ->
-                    { url = get.Required.Field "url" Decode.string
+                    {
+                      id = get.Required.Field "id" Decode.string
+                      url = get.Required.Field "url" Decode.string
                       name = get.Required.Field "name" Decode.string
                       size = get.Required.Field "size" Decode.int
                     }
@@ -69,11 +72,6 @@ module AppTypes =
                       username = get.Required.Field "username" Decode.string
                     }
                 )
-
-    type UploadResponse =
-        { url: string; id: string}
-        static member Decoder : Decoder<UploadResponse> =
-            Decode.object (fun get -> { url = get.Required.Field "url" Decode.string;id = get.Required.Field "id" Decode.string} )
 
     type DialogModel =
       {
@@ -157,9 +155,7 @@ module AppTypes =
     type MessageTypeFileMessage =
         {
         db_id: int64
-        file_url: string
-        file_name: string
-        file_size: string
+        file: MessageModelFile
         sender: string
         receiver: string
         sender_username: string
@@ -168,9 +164,7 @@ module AppTypes =
           Decode.object (fun get ->
               {
                   db_id = get.Required.Field "db_id" Decode.int64
-                  file_url = get.Required.Field "file_url" Decode.string
-                  file_name = get.Required.Field "file_name" Decode.string
-                  file_size = get.Required.Field "file_size" Decode.string
+                  file = get.Required.Field "file" MessageModelFile.Decoder
                   sender = get.Required.Field "sender" Decode.string
                   receiver = get.Required.Field "receiver" Decode.string
                   sender_username = get.Required.Field "sender_username" Decode.string

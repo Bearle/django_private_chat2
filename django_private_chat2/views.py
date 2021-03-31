@@ -12,7 +12,7 @@ from .models import (
     DialogsModel,
     UploadedFile
 )
-from .serializers import serialize_message_model, serialize_dialog_model
+from .serializers import serialize_message_model, serialize_dialog_model, serialize_file_model
 from django.db.models import Q
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -124,7 +124,7 @@ class UploadView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form: UploadForm):
         self.object = UploadedFile.objects.create(uploaded_by=self.request.user, file=form.cleaned_data['file'])
-        return JsonResponse({'id': self.object.id, 'url': self.object.file.url})
+        return JsonResponse(serialize_file_model(self.object))
 
     def form_invalid(self, form: UploadForm):
         context = self.get_context_data(form=form)

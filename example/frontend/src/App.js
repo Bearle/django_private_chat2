@@ -337,7 +337,7 @@ export class App extends Component {
                     }
                     return {
                         ...el,
-                        data: {dialog_id: el.data.dialog_id, message_id: new_id, out: el.data.out},
+                        data: {...el.data, dialog_id: el.data.dialog_id, message_id: new_id, out: el.data.out},
                         status: new_status
                     }
                 } else {
@@ -407,9 +407,12 @@ export class App extends Component {
                 console.log(r.fields[0])
                 let user_pk = this.state.selectedDialog.id;
                 let uploadResp = r.fields[0];
-                let res = sendOutgoingFileMessage(this.state.socket, uploadResp.id, user_pk, uploadResp.url, this.state.selfInfo)
+                let msgBox = sendOutgoingFileMessage(this.state.socket, user_pk, uploadResp, this.state.selfInfo);
                 console.log("sendOutgoingFileMessage result:");
-                console.log(res);
+                console.log(msgBox);
+                if (msgBox) {
+                    this.addMessage(msgBox);
+                }
             } else {
                 console.log("File upload error")
                 toast.error(r.fields[0])
