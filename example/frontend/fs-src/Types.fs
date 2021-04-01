@@ -265,6 +265,7 @@ module AppTypes =
         avatar: string
         date: DateTimeOffset
         data: MessageBoxData
+        onDownload: (obj -> unit) option
     } with member this.HasDbId() = this.data.message_id > 0L
 
     type ChatItem = {

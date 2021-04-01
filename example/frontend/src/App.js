@@ -562,6 +562,10 @@ export class App extends Component {
                     <MessageList
                         className='message-list'
                         lockable={true}
+                        onDownload={(x,i,e) => {
+                            console.log("onDownload from messageList")
+                            x.onDownload();
+                        }}
                         downButtonBadge={this.state.selectedDialog && this.state.selectedDialog.unread > 0 ? this.state.selectedDialog.unread : ''}
                         dataSource={filterMessagesForDialog(this.state.selectedDialog, this.state.messageList)}/>
 

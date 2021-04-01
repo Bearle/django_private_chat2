@@ -10,6 +10,27 @@ open Thoth.Json
 open App.AppTypes
 open App.Utils
 
+let createOnDownload (uri:string) (filename:string)(e: obj) =
+    promise {
+        JS.console.log("running onDownload for " + uri)
+        JS.console.log(e)
+        let! resp = tryFetch uri []
+        match resp with
+        | Result.Ok r ->
+            let! b = r.blob()
+            return Result.Ok b
+        | Result.Error e -> return Result.Error e.Message
+    }
+    |> Promise.mapResult (fun x ->
+        let u = Browser.Url.URL.createObjectURL(x)
+        let a = Browser.Dom.document.createElement("a") :?> HTMLAnchorElement
+        a.href <- u
+        a.setAttribute("download", filename)
+        a.click()
+        Browser.Dom.window.setTimeout((fun _ -> Browser.Url.URL.revokeObjectURL(u)),200) |> ignore
+    ) |> Promise.start
+
+
 let getSubtitleTextFromMessageModel(msg: MessageModel option) =
     msg
    |> Option.map (fun x -> if x.out then "You: " + x.text else x.text)
@@ -31,6 +52,7 @@ let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage)
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
         data = {dialog_id=message.sender;message_id=message.random_id;out=false;status=None;size=None;uri=None}
+        onDownload = None
     }
 
 let createMessageBoxFromMessageTypeFileMessage (message: MessageTypeFileMessage) =
@@ -52,6 +74,7 @@ let createMessageBoxFromMessageTypeFileMessage (message: MessageTypeFileMessage)
                 size=Some (humanFileSize message.file.size)
                 uri=Some message.file.url
                }
+        onDownload = Some(createOnDownload message.file.url message.file.name)
     }
 
 let createMessageBoxFromOutgoingMessage (text: string) (user_pk:string) (self_pk:string) (self_username: string)
@@ -70,6 +93,7 @@ let createMessageBoxFromOutgoingMessage (text: string) (user_pk:string) (self_pk
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
         data = {dialog_id=user_pk;message_id=random_id;out=true;status=dataStatus;size=size;uri=uri}
+        onDownload = file_data |> Option.map(fun x -> createOnDownload x.url x.name)
     }
 
 
@@ -269,6 +293,7 @@ let fetchUsersList(existing: ChatItem array) =
             unread = 0
         }))
 
+
 let fetchMessages() =
     promise {
         let! resp = tryFetch messagesEndpoint []
@@ -290,7 +315,7 @@ let fetchMessages() =
                 | false, false -> MessageBoxStatus.Received
             let avatar = getPhotoString message.sender (Some 150)
             let dialog_id = if message.out then message.recipient else message.sender
-            let dataStatus = message.file |> Option.map(fun _ -> {click=true;loading=1.0;download=false})
+            let dataStatus = message.file |> Option.map(fun _ -> {click=false;loading=1.0;download=false})
             let size = message.file |> Option.map(fun x -> humanFileSize x.size)
             let uri = message.file |> Option.map(fun x -> x.url)
             let text =
@@ -311,6 +336,7 @@ let fetchMessages() =
                         size=size
                         uri=uri
                         status=dataStatus}
+                onDownload = message.file |> Option.map(fun x -> createOnDownload x.url x.name)
             })
         |> Array.sortBy (fun x -> x.date)
         )
