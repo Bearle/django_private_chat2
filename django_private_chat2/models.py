@@ -88,7 +88,7 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
 
     def save(self, *args, **kwargs):
         super(MessageModel, self).save(*args, **kwargs)
-        return DialogsModel.create_if_not_exists(self.sender, self.recipient)
+        DialogsModel.create_if_not_exists(self.sender, self.recipient)
 
     class Meta:
         ordering = ('-created',)
