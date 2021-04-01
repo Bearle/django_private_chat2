@@ -43,7 +43,7 @@ class DialogsModel(TimeStampedModel):
         verbose_name_plural = _("Dialogs")
 
     def __str__(self):
-        return _("Dialog between ") + f"{self.user1.pk}, {self.user2.pk}"
+        return _("Dialog between ") + f"{self.user1_id}, {self.user2_id}"
 
     @staticmethod
     def dialog_exists(u1: AbstractBaseUser, u2: AbstractBaseUser) -> Optional[Any]:
