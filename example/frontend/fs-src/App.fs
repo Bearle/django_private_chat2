@@ -10,6 +10,7 @@ open Thoth.Json
 open App.AppTypes
 open App.Utils
 
+let defaultDataStatus = {click=true;loading=0.;download=false}
 let createOnDownload (uri:string) (filename:string)(e: obj) =
     promise {
         JS.console.log("running onDownload for " + uri)
@@ -57,7 +58,6 @@ let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage)
 
 let createMessageBoxFromMessageTypeFileMessage (message: MessageTypeFileMessage) =
     let avatar = getPhotoString message.sender (Some 150)
-    let dataStatus = {click=true;loading=1.0;download=false}
     {
         position=MessageBoxPosition.Left
         ``type``=MessageBoxType.File
@@ -70,7 +70,7 @@ let createMessageBoxFromMessageTypeFileMessage (message: MessageTypeFileMessage)
                 dialog_id=message.sender
                 message_id=message.db_id
                 out=false
-                status=Some dataStatus
+                status=Some defaultDataStatus
                 size=Some (humanFileSize message.file.size)
                 uri=Some message.file.url
                }
@@ -80,7 +80,7 @@ let createMessageBoxFromMessageTypeFileMessage (message: MessageTypeFileMessage)
 let createMessageBoxFromOutgoingMessage (text: string) (user_pk:string) (self_pk:string) (self_username: string)
                                         (random_id:int64) (file_data: MessageModelFile option)=
     let avatar = getPhotoString self_pk (Some 150)
-    let dataStatus = file_data |> Option.map(fun _ -> {click=true;loading=1.0;download=false})
+    let dataStatus = file_data |> Option.map(fun _ -> defaultDataStatus)
     let size = file_data |> Option.map(fun x -> humanFileSize x.size)
     let uri =file_data |> Option.map(fun x -> x.url)
     let tpe = match file_data with |None -> MessageBoxType.Text |Some _ -> MessageBoxType.File
@@ -315,7 +315,7 @@ let fetchMessages() =
                 | false, false -> MessageBoxStatus.Received
             let avatar = getPhotoString message.sender (Some 150)
             let dialog_id = if message.out then message.recipient else message.sender
-            let dataStatus = message.file |> Option.map(fun _ -> {click=false;loading=1.0;download=false})
+            let dataStatus = message.file |> Option.map(fun _ -> defaultDataStatus)
             let size = message.file |> Option.map(fun x -> humanFileSize x.size)
             let uri = message.file |> Option.map(fun x -> x.url)
             let text =
