@@ -55,7 +55,7 @@
       "sender": 1,
       "recipient": 2,
       "text": "Hey!",
-      "file": "",
+      "file": null,
       "read": true
     }
   },
@@ -69,7 +69,7 @@
       "sender": 2,
       "recipient": 1,
       "text": "Hello!",
-      "file": "",
+      "file": null,
       "read": false
     }
   },
@@ -83,7 +83,7 @@
       "sender": 2,
       "recipient": 1,
       "text": "How are you ?",
-      "file": "",
+      "file": null,
       "read": false
     }
   }

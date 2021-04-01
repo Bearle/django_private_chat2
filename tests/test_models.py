@@ -152,5 +152,5 @@ class TestCaseMessageModelGenerated(TestCase):
         self.assertIsNotNone(message_model.sender)
         self.assertIsNotNone(message_model.recipient)
         self.assertIsNotNone(message_model.text)
-        self.assertIsNotNone(message_model.file)
+        self.assertIsNone(message_model.file)
         self.assertIsNotNone(message_model.read)

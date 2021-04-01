@@ -9,13 +9,25 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth import get_user_model
 from typing import Optional, Any
 from django.db.models import Q
+import uuid
 
 UserModel: AbstractBaseUser = get_user_model()
 
 
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
-    return f"user_{instance.sender.pk}/{filename}"
+    return f"user_{instance.uploaded_by.pk}/{filename}"
+
+
+class UploadedFile(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_("Uploaded_by"),
+                                    related_name='+', db_index=True)
+    file = models.FileField(verbose_name=_("File"), blank=False, null=False, upload_to=user_directory_path)
+    upload_date = models.DateTimeField(auto_now_add=True, verbose_name=_("Upload date"))
+
+    def __str__(self):
+        return str(self.file.name)
 
 
 class DialogsModel(TimeStampedModel):
@@ -55,7 +67,8 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_("Recipient"),
                                   related_name='to_user', db_index=True)
     text = models.TextField(verbose_name=_("Text"), blank=True)
-    file = models.FileField(verbose_name=_("File"), blank=True, upload_to=user_directory_path)
+    file = models.ForeignKey(UploadedFile, related_name='message', on_delete=models.DO_NOTHING,
+                             verbose_name=_("File"), blank=True, null=True)
 
     read = models.BooleanField(verbose_name=_("Read"), default=False)
     all_objects = models.Manager()

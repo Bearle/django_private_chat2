@@ -5,6 +5,23 @@ module AppTypes =
     open Fable.Core
     open Thoth.Json
 
+
+    type MessageModelFile =
+        { id: string
+          url: string
+          name: string
+          size: int
+          }
+        static member Decoder : Decoder<MessageModelFile> =
+            Decode.object
+                (fun get ->
+                    {
+                      id = get.Required.Field "id" Decode.string
+                      url = get.Required.Field "url" Decode.string
+                      name = get.Required.Field "name" Decode.string
+                      size = get.Required.Field "size" Decode.int
+                    }
+                )
     type MessageModel =
       {
        id: int
@@ -12,7 +29,7 @@ module AppTypes =
        sent: DateTimeOffset
        edited: DateTimeOffset
        read: bool
-       file: string option
+       file: MessageModelFile option
        sender: string
        recipient: string
        sender_username: string
@@ -25,7 +42,7 @@ module AppTypes =
                   sent = (get.Required.Field "sent" Decode.int64) |> DateTimeOffset.FromUnixTimeSeconds
                   edited = (get.Required.Field "edited" Decode.int64) |> DateTimeOffset.FromUnixTimeSeconds
                   read = get.Required.Field "read" Decode.bool
-                  file = get.Optional.Field "file" Decode.string
+                  file = get.Optional.Field "file" MessageModelFile.Decoder
                   sender = get.Required.Field "sender" Decode.string
                   recipient = get.Required.Field "recipient" Decode.string
                   sender_username =  get.Required.Field "sender_username" Decode.string
@@ -135,6 +152,24 @@ module AppTypes =
                   sender_username = get.Required.Field "sender_username" Decode.string
               })
 
+    type MessageTypeFileMessage =
+        {
+        db_id: int64
+        file: MessageModelFile
+        sender: string
+        receiver: string
+        sender_username: string
+        }
+        static member Decoder: Decoder<MessageTypeFileMessage> =
+          Decode.object (fun get ->
+              {
+                  db_id = get.Required.Field "db_id" Decode.int64
+                  file = get.Required.Field "file" MessageModelFile.Decoder
+                  sender = get.Required.Field "sender" Decode.string
+                  receiver = get.Required.Field "receiver" Decode.string
+                  sender_username = get.Required.Field "sender_username" Decode.string
+              })
+
     type MessageTypeMessageIdCreated =
         { random_id: int64
           db_id: int64
@@ -151,6 +186,9 @@ module AppTypes =
         | TextMessageInvalid = 2
         | InvalidMessageReadId = 3
         | InvalidUserPk = 4
+        | InvalidRandomId = 5
+        | FileMessageInvalid = 6
+        | FileDoesNotExist = 7
 
     type ErrorDescription = ErrorTypes * string
 
@@ -205,10 +243,18 @@ module AppTypes =
         | Meeting
         | Audio
 
+    type MessageBoxDataStatus = {
+        click: bool
+        loading: float
+        download: bool
+    }
     type MessageBoxData = {
         dialog_id: string
         message_id: int64
         out: bool
+        size: string option
+        uri: string option
+        status: MessageBoxDataStatus option
     }
     type MessageBox = {
         position: MessageBoxPosition
@@ -219,6 +265,7 @@ module AppTypes =
         avatar: string
         date: DateTimeOffset
         data: MessageBoxData
+        onDownload: (obj -> unit) option
     } with member this.HasDbId() = this.data.message_id > 0L
 
     type ChatItem = {

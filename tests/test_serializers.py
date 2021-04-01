@@ -16,6 +16,7 @@ class SerializerTests(TestCase):
 
     def test_serialize_message_model(self):
         serialized = serialize_message_model(self.message, self.sender.pk)
+        #TODO: test file serialization
         o = {
             "id": self.message.id,
             "text": "testText",

@@ -4,10 +4,33 @@ open System
 open Browser.Types
 open Fable.Core.JsInterop
 open Fable.Core
+open Fable.Import
 open Fetch
 open Thoth.Json
 open App.AppTypes
 open App.Utils
+
+let defaultDataStatus = {click=true;loading=0.;download=false}
+let createOnDownload (uri:string) (filename:string)(e: obj) =
+    promise {
+        JS.console.log("running onDownload for " + uri)
+        JS.console.log(e)
+        let! resp = tryFetch uri []
+        match resp with
+        | Result.Ok r ->
+            let! b = r.blob()
+            return Result.Ok b
+        | Result.Error e -> return Result.Error e.Message
+    }
+    |> Promise.mapResult (fun x ->
+        let u = Browser.Url.URL.createObjectURL(x)
+        let a = Browser.Dom.document.createElement("a") :?> HTMLAnchorElement
+        a.href <- u
+        a.setAttribute("download", filename)
+        a.click()
+        Browser.Dom.window.setTimeout((fun _ -> Browser.Url.URL.revokeObjectURL(u)),200) |> ignore
+    ) |> Promise.start
+
 
 let getSubtitleTextFromMessageModel(msg: MessageModel option) =
     msg
@@ -29,21 +52,50 @@ let createMessageBoxFromMessageTypeTextMessage (message: MessageTypeTextMessage)
         status=MessageBoxStatus.Waiting
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
-        data = {dialog_id=message.sender;message_id=message.random_id;out=false}
+        data = {dialog_id=message.sender;message_id=message.random_id;out=false;status=None;size=None;uri=None}
+        onDownload = None
     }
 
-let createMessageBoxFromOutgoingTextMessage (text: string) (user_pk:string) (self_pk:string) (self_username: string) (random_id:int64)=
+let createMessageBoxFromMessageTypeFileMessage (message: MessageTypeFileMessage) =
+    let avatar = getPhotoString message.sender (Some 150)
+    {
+        position=MessageBoxPosition.Left
+        ``type``=MessageBoxType.File
+        text = message.file.name
+        title=message.sender_username
+        status=MessageBoxStatus.Waiting
+        avatar=avatar
+        date=(DateTimeOffset(JS.Constructors.Date.Create()))
+        data = {
+                dialog_id=message.sender
+                message_id=message.db_id
+                out=false
+                status=Some defaultDataStatus
+                size=Some (humanFileSize message.file.size)
+                uri=Some message.file.url
+               }
+        onDownload = Some(createOnDownload message.file.url message.file.name)
+    }
+
+let createMessageBoxFromOutgoingMessage (text: string) (user_pk:string) (self_pk:string) (self_username: string)
+                                        (random_id:int64) (file_data: MessageModelFile option)=
     let avatar = getPhotoString self_pk (Some 150)
+    let dataStatus = file_data |> Option.map(fun _ -> defaultDataStatus)
+    let size = file_data |> Option.map(fun x -> humanFileSize x.size)
+    let uri =file_data |> Option.map(fun x -> x.url)
+    let tpe = match file_data with |None -> MessageBoxType.Text |Some _ -> MessageBoxType.File
     {
         position=MessageBoxPosition.Right
-        ``type``=MessageBoxType.Text
+        ``type``=tpe
         text = text
         title=self_username
         status=MessageBoxStatus.Waiting
         avatar=avatar
         date=(DateTimeOffset(JS.Constructors.Date.Create()))
-        data = {dialog_id=user_pk;message_id=random_id;out=true}
+        data = {dialog_id=user_pk;message_id=random_id;out=true;status=dataStatus;size=size;uri=uri}
+        onDownload = file_data |> Option.map(fun x -> createOnDownload x.url x.name)
     }
+
 
 let createNewDialogModelFromIncomingMessageBox (m: MessageBox) =
     {
@@ -77,6 +129,12 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
                 printfn "Received MessageTypes.TextMessage - %s" message
                 Decode.fromString MessageTypeTextMessage.Decoder message
                 |> Result.map createMessageBoxFromMessageTypeTextMessage
+                |> Result.map (callbacks.addMessage)
+
+            | MessageTypes.FileMessage ->
+                printfn "Received MessageTypes.FileMessage - %s" message
+                Decode.fromString MessageTypeFileMessage.Decoder message
+                |> Result.map createMessageBoxFromMessageTypeFileMessage
                 |> Result.map (callbacks.addMessage)
 
             | MessageTypes.MessageIdCreated ->
@@ -142,7 +200,18 @@ let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) (
         "random_id", Encode.int (int32 randomId)
     ]
     sock.send (msgTypeEncoder MessageTypes.TextMessage data)
-    self_info |> Option.map (fun x -> createMessageBoxFromOutgoingTextMessage text user_pk x.pk x.username randomId)
+    self_info |> Option.map (fun x -> createMessageBoxFromOutgoingMessage text user_pk x.pk x.username randomId None)
+
+let sendOutgoingFileMessage (sock: WebSocket) (user_pk: string) (file_data: MessageModelFile) (self_info: UserInfoResponse option) =
+    printfn "Sending file message: '%s', user_pk:'%s'" file_data.id user_pk
+    let randomId = generateRandomId()
+    let data = [
+        "file_id", Encode.string file_data.id
+        "user_pk", Encode.string user_pk
+        "random_id", Encode.int (int32 randomId)
+    ]
+    sock.send (msgTypeEncoder MessageTypes.FileMessage data)
+    self_info |> Option.map (fun x -> createMessageBoxFromOutgoingMessage file_data.name user_pk x.pk x.username randomId (Some file_data))
 
 let sendIsTypingMessage (sock: WebSocket) =
     sock.send (msgTypeEncoder MessageTypes.IsTyping [])
@@ -161,6 +230,28 @@ let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
 let selfEndpoint = sprintf "%s/self/" backendUrl
 let usersEndpoint = sprintf "%s/users/" backendUrl
 
+let uploadEndpoint = sprintf "%s/upload/" backendUrl
+
+
+let uploadFile (f: FileList) (csrfToken: string) =
+    promise {
+        let data = Browser.Blob.FormData.Create()
+        data.append("file",f.[0])
+        let headers =  HttpRequestHeaders.Custom("X-CSRFToken", csrfToken) |> List.singleton |> requestHeaders
+        let props = [
+            RequestProperties.Method HttpMethod.POST
+            RequestProperties.Body (BodyInit.Case2 data)
+            headers
+        ]
+        let! resp = tryFetch uploadEndpoint props
+        match resp with
+        | Result.Ok r ->
+            let! text = r.text()
+            let decoded = Decode.fromString MessageModelFile.Decoder text
+            return decoded
+        | Result.Error e -> return Result.Error e.Message
+
+    }
 
 let fetchSelfInfo() =
     promise {
@@ -202,6 +293,7 @@ let fetchUsersList(existing: ChatItem array) =
             unread = 0
         }))
 
+
 let fetchMessages() =
     promise {
         let! resp = tryFetch messagesEndpoint []
@@ -223,16 +315,28 @@ let fetchMessages() =
                 | false, false -> MessageBoxStatus.Received
             let avatar = getPhotoString message.sender (Some 150)
             let dialog_id = if message.out then message.recipient else message.sender
-
+            let dataStatus = message.file |> Option.map(fun _ -> defaultDataStatus)
+            let size = message.file |> Option.map(fun x -> humanFileSize x.size)
+            let uri = message.file |> Option.map(fun x -> x.url)
+            let text =
+                match message.file with
+                | Some f -> f.name
+                | None -> message.text
             {
                 position=if message.out then MessageBoxPosition.Right else MessageBoxPosition.Left
                 ``type``=t
-                text = message.text
+                text = text
                 title=message.sender_username
                 status=status
                 avatar=avatar
                 date=message.sent
-                data = {dialog_id=dialog_id;message_id=int64 message.id;out=message.out}
+                data = {dialog_id=dialog_id
+                        message_id=int64 message.id
+                        out=message.out
+                        size=size
+                        uri=uri
+                        status=dataStatus}
+                onDownload = message.file |> Option.map(fun x -> createOnDownload x.url x.name)
             })
         |> Array.sortBy (fun x -> x.date)
         )

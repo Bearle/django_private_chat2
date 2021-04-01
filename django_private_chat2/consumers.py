@@ -1,7 +1,8 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import InMemoryChannelLayer
 from channels.db import database_sync_to_async
-from .models import MessageModel, DialogsModel, UserModel
+from .models import MessageModel, DialogsModel, UserModel, UploadedFile
+from .serializers import serialize_file_model
 from typing import List, Set, Awaitable, Optional, Dict, Tuple
 from django.contrib.auth.models import AbstractBaseUser
 from django.conf import settings
@@ -14,7 +15,7 @@ try:
     from typing import TypedDict
 except ImportError:
     TypedDict = dict
-    
+
 logger = logging.getLogger('django_private_chat2.consumers')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 
@@ -25,6 +26,8 @@ class ErrorTypes(enum.IntEnum):
     InvalidMessageReadId = 3
     InvalidUserPk = 4
     InvalidRandomId = 5
+    FileMessageInvalid = 6
+    FileDoesNotExist = 7
 
 
 ErrorDescription = Tuple[ErrorTypes, str]
@@ -41,6 +44,12 @@ class MessageTypeTextMessage(TypedDict):
 class MessageTypeMessageRead(TypedDict):
     user_pk: str
     message_id: int
+
+
+class MessageTypeFileMessage(TypedDict):
+    file_id: str
+    user_pk: str
+    random_id: int
 
 
 class MessageTypes(enum.IntEnum):
@@ -64,6 +73,11 @@ def get_groups_to_add(u: AbstractBaseUser) -> Set[int]:
 @database_sync_to_async
 def get_user_by_pk(pk: str) -> Optional[AbstractBaseUser]:
     return UserModel.objects.filter(pk=pk).first()
+
+
+@database_sync_to_async
+def get_file_by_id(file_id: str) -> Optional[UploadedFile]:
+    return UploadedFile.objects.filter(id=file_id).first()
 
 
 @database_sync_to_async
@@ -94,7 +108,22 @@ def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) 
     return MessageModel.objects.create(text=text, sender=from_, recipient=to)
 
 
+@database_sync_to_async
+def save_file_message(file: UploadedFile, from_: AbstractBaseUser, to: AbstractBaseUser) -> MessageModel:
+    return MessageModel.objects.create(file=file, sender=from_, recipient=to)
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
+    async def _after_message_save(self, msg: MessageModel, rid: int, user_pk: str):
+        ev = {"type": "message_id_created", "random_id": rid, "db_id": msg.id}
+        logger.info(f"Message with id {msg.id} saved, firing events to {user_pk} & {self.group_name}")
+        await self.channel_layer.group_send(user_pk, ev)
+        await self.channel_layer.group_send(self.group_name, ev)
+        new_unreads = await get_unread_count(self.group_name, user_pk)
+        await self.channel_layer.group_send(user_pk,
+                                            {"type": "new_unread_count", "sender": self.group_name,
+                                             "unread_count": new_unreads})
+
     async def connect(self):
         # TODO:
         # 1. Set user online
@@ -148,8 +177,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                                                      "user_pk": str(self.user.pk)})
                 return None
             elif msg_type == MessageTypes.MessageRead:
-                if can_use_TypedDict:
-                    data: MessageTypeMessageRead
+                data: MessageTypeMessageRead
                 if 'user_pk' not in data:
                     return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
                 elif 'message_id' not in data:
@@ -190,9 +218,54 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # await mark_message_as_read(mid, sender_pk=user_pk, recipient_pk=self.group_name)
 
                 return None
+            elif msg_type == MessageTypes.FileMessage:
+                data: MessageTypeFileMessage
+                if 'file_id' not in data:
+                    return ErrorTypes.MessageParsingError, "'file_id' not present in data"
+                elif 'user_pk' not in data:
+                    return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
+                elif 'random_id' not in data:
+                    return ErrorTypes.MessageParsingError, "'random_id' not present in data"
+                elif data['file_id'] == '':
+                    return ErrorTypes.FileMessageInvalid, "'file_id' should not be blank"
+                elif not isinstance(data['file_id'], str):
+                    return ErrorTypes.FileMessageInvalid, "'file_id' should be a string"
+                elif not isinstance(data['user_pk'], str):
+                    return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
+                elif not isinstance(data['random_id'], int):
+                    return ErrorTypes.InvalidRandomId, "'random_id' should be an int"
+                elif data['random_id'] > 0:
+                    return ErrorTypes.InvalidRandomId, "'random_id' should be negative"
+                else:
+                    file_id = data['file_id']
+                    user_pk = data['user_pk']
+                    rid = data['random_id']
+                    # We can't send the message right away like in the case with text message
+                    # because we don't have the file url.
+                    file: Optional[UploadedFile] = await get_file_by_id(file_id)
+                    logger.info(f"DB check if file {file_id} exists resulted in {file}")
+                    if not file:
+                        return ErrorTypes.FileDoesNotExist, f"File with id {file_id} does not exist"
+                    else:
+                        recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
+                        logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+                        if not recipient:
+                            return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
+                        else:
+                            logger.info(f"Will save file message from {self.user} to {recipient}")
+                            msg = await save_file_message(file, from_=self.user, to=recipient)
+                            await self._after_message_save(msg, rid=rid, user_pk=user_pk)
+                            logger.info(f"Sending file message for file {file_id} from {self.user} to {recipient}")
+                            # We don't need to send random_id here because we've already saved the file to db
+                            await self.channel_layer.group_send(user_pk, {"type": "new_file_message",
+                                                                          "db_id": msg.id,
+                                                                          "file": serialize_file_model(file),
+                                                                          "sender": self.group_name,
+                                                                          "receiver": user_pk,
+                                                                          "sender_username": self.sender_username})
+
             elif msg_type == MessageTypes.TextMessage:
-                if can_use_TypedDict:
-                    data: MessageTypeTextMessage
+                data: MessageTypeTextMessage
                 if 'text' not in data:
                     return ErrorTypes.MessageParsingError, "'text' not present in data"
                 elif 'user_pk' not in data:
@@ -236,14 +309,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     else:
                         logger.info(f"Will save text message from {self.user} to {recipient}")
                         msg = await save_text_message(text, from_=self.user, to=recipient)
-                        ev = {"type": "message_id_created", "random_id": rid, "db_id": msg.id}
-                        logger.info(f"Message with id {msg.id} saved, firing events to {user_pk} & {self.group_name}")
-                        await self.channel_layer.group_send(user_pk, ev)
-                        await self.channel_layer.group_send(self.group_name, ev)
-                        new_unreads = await get_unread_count(self.group_name, user_pk)
-                        await self.channel_layer.group_send(user_pk,
-                                                            {"type": "new_unread_count", "sender": self.group_name,
-                                                             "unread_count": new_unreads})
+                        await self._after_message_save(msg, rid=rid, user_pk=user_pk)
 
     # Receive message from WebSocket
     async def receive(self, text_data=None, bytes_data=None):
@@ -305,6 +371,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'msg_type': MessageTypes.TextMessage,
                 "random_id": event['random_id'],
                 "text": event['text'],
+                "sender": event['sender'],
+                "receiver": event['receiver'],
+                "sender_username": event['sender_username'],
+            }))
+
+    async def new_file_message(self, event):
+        await self.send(
+            text_data=json.dumps({
+                'msg_type': MessageTypes.FileMessage,
+                "db_id": event['db_id'],
+                "file": event['file'],
                 "sender": event['sender'],
                 "receiver": event['receiver'],
                 "sender_username": event['sender_username'],

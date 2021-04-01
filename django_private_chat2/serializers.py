@@ -1,8 +1,11 @@
-from .models import MessageModel, DialogsModel, UserModel
-from datetime import datetime
-from typing import Callable, Optional
-from django.contrib.auth.models import AbstractBaseUser
-import json
+from .models import MessageModel, DialogsModel, UserModel, UploadedFile
+from typing import Optional
+import os
+
+
+def serialize_file_model(m: UploadedFile):
+    return {'id': str(m.id), 'url': m.file.url,
+            'size': m.file.size, 'name': os.path.basename(m.file.name)}
 
 
 def serialize_message_model(m: MessageModel, user_id):
@@ -16,7 +19,7 @@ def serialize_message_model(m: MessageModel, user_id):
         "sent": int(m.created.timestamp()),
         "edited": int(m.modified.timestamp()),
         "read": m.read,
-        "file": m.file.path if m.file else None,
+        "file": serialize_file_model(m.file) if m.file else None,
         "sender": str(sender_pk),
         "recipient": str(m.recipient.pk),
         "out": is_out,
@@ -27,7 +30,8 @@ def serialize_message_model(m: MessageModel, user_id):
 
 def serialize_dialog_model(m: DialogsModel, user_id):
     username_field = UserModel.USERNAME_FIELD
-    other_user_pk, other_user_username = UserModel.objects.filter(pk=m.user1.pk).values_list('pk',username_field).first() \
+    other_user_pk, other_user_username = UserModel.objects.filter(pk=m.user1.pk).values_list('pk',
+                                                                                             username_field).first() \
         if m.user2.pk == user_id else UserModel.objects.filter(pk=m.user2.pk).values_list('pk', username_field).first()
     unread_count = MessageModel.get_unread_count_for_dialog_with_user(sender=other_user_pk, recipient=user_id)
     last_message: Optional[MessageModel] = MessageModel.get_last_message_for_dialog(sender=other_user_pk,

@@ -4,22 +4,26 @@ from django.views.generic import (
     DeleteView,
     DetailView,
     UpdateView,
-    ListView
-)
+    ListView,
 
+)
 from .models import (
     MessageModel,
-    DialogsModel
+    DialogsModel,
+    UploadedFile
 )
-from .serializers import serialize_message_model, serialize_dialog_model
+from .serializers import serialize_message_model, serialize_dialog_model, serialize_file_model
 from django.db.models import Q
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.core.paginator import Page, Paginator
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
+from django.urls import reverse_lazy
+from django.forms import ModelForm
+import json
 
 
 class MessagesModelList(LoginRequiredMixin, ListView):
@@ -85,3 +89,44 @@ class SelfInfoView(LoginRequiredMixin, DetailView):
             "pk": str(user.pk)
         }
         return JsonResponse(data, **response_kwargs)
+
+
+# 2.5MB - 2621440
+# 5MB - 5242880
+# 10MB - 10485760
+# 20MB - 20971520
+# 50MB - 5242880
+# 100MB 104857600
+# 250MB - 214958080
+# 500MB - 429916160
+# MAX_UPLOAD_SIZE = getattr(settings, 'MAX_FILE_UPLOAD_SIZE', 5242880)
+
+class UploadForm(ModelForm):
+    # TODO: max file size validation
+    # def check_file(self):
+    #     content = self.cleaned_data["file"]
+    #     content_type = content.content_type.split('/')[0]
+    #     if (content._size > MAX_UPLOAD_SIZE):
+    #         raise forms.ValidationError(_("Please keep file size under %s. Current file size %s")%(filesizeformat(MAX_UPLOAD_SIZE), filesizeformat(content._size)))
+    #     return content
+    #
+    # def clean(self):
+
+    class Meta:
+        model = UploadedFile
+        fields = ['file']
+
+
+class UploadView(LoginRequiredMixin, CreateView):
+    http_method_names = ['post', ]
+    model = UploadedFile
+    form_class = UploadForm
+
+    def form_valid(self, form: UploadForm):
+        self.object = UploadedFile.objects.create(uploaded_by=self.request.user, file=form.cleaned_data['file'])
+        return JsonResponse(serialize_file_model(self.object))
+
+    def form_invalid(self, form: UploadForm):
+        context = self.get_context_data(form=form)
+        errors_json: str = context['form'].errors.get_json_data()
+        return HttpResponseBadRequest(content=json.dumps({'errors': errors_json}))

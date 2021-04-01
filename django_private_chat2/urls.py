@@ -13,5 +13,6 @@ urlpatterns = [
     path('messages/', views.MessagesModelList.as_view(), name='all_messages_list'),
     path('messages/<dialog_with>/', views.MessagesModelList.as_view(), name='messages_list'),
     path('dialogs/', views.DialogsModelList.as_view(), name='dialogs_list'),
-    path('self/', views.SelfInfoView.as_view(), name='self_info')
+    path('self/', views.SelfInfoView.as_view(), name='self_info'),
+    path('upload/', views.UploadView.as_view(), name='fileupload'),
 ]
