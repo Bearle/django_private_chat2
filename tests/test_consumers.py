@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth.models import AnonymousUser, User
 from django_private_chat2.serializers import serialize_message_model, serialize_dialog_model
 import json
-from channels.testing import HttpCommunicator
+from channels.testing import HttpCommunicator, WebsocketCommunicator
 from channels.db import database_sync_to_async
 
 from django_private_chat2.consumers import ChatConsumer, get_groups_to_add, get_user_by_pk, get_file_by_id, \
@@ -23,6 +23,11 @@ class ConsumerTests(TestCase):
         self.file: UploadedFile = UploadedFile.objects.create(uploaded_by=self.u1, file="LICENSE")
         self.msg: MessageModel = MessageModelFactory.create(sender=self.u1, recipient=self.u2)
         self.unread_msg: MessageModel = MessageModelFactory.create(sender=self.u1, recipient=self.u2, read=False)
+
+        self.sender, self.recipient = UserFactory.create(), UserFactory.create()
+        num_unread = faker.random.randint(1, 20)
+        _ = MessageModelFactory.create_batch(num_unread, read=False, sender=self.sender, recipient=self.recipient)
+        self.num_unread = num_unread
 
     async def test_groups_to_add(self):
         groups = await get_groups_to_add(self.u1)
@@ -54,3 +59,19 @@ class ConsumerTests(TestCase):
         await mark_message_as_read(self.unread_msg.id)
         await database_sync_to_async(self.unread_msg.refresh_from_db)()
         self.assertTrue(self.unread_msg.read)
+
+    async def test_get_unread_count(self):
+        count = await get_unread_count(self.sender, self.recipient)
+        self.assertEqual(count, self.num_unread)
+
+    async def test_save_x_message(self):
+        msg = await save_text_message(text="text", from_=self.u1, to=self.u2)
+        self.assertIsNotNone(msg)
+        msg2 = await save_file_message(file=self.file, from_=self.u1, to=self.u2)
+        self.assertIsNotNone(msg2)
+
+    async def test_connect_basic(self):
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/chat_ws")
+        communicator.scope["user"] = self.u1
+        connected, subprotocol = await communicator.connect()
+        assert connected
