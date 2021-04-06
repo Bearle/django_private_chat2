@@ -6,6 +6,7 @@ from .serializers import serialize_file_model
 from typing import List, Set, Awaitable, Optional, Dict, Tuple
 from django.contrib.auth.models import AbstractBaseUser
 from django.conf import settings
+from django.core.exceptions import ValidationError
 import logging
 import json
 import enum
@@ -77,7 +78,11 @@ def get_user_by_pk(pk: str) -> Optional[AbstractBaseUser]:
 
 @database_sync_to_async
 def get_file_by_id(file_id: str) -> Optional[UploadedFile]:
-    return UploadedFile.objects.filter(id=file_id).first()
+    try:
+        f = UploadedFile.objects.filter(id=file_id).first()
+    except ValidationError:
+        f = None
+    return f
 
 
 @database_sync_to_async
