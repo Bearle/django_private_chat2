@@ -10,14 +10,19 @@ from django.contrib.auth.models import AnonymousUser, User
 from django_private_chat2.serializers import serialize_message_model, serialize_dialog_model
 import json
 from channels.testing import HttpCommunicator
-from django_private_chat2.consumers import ChatConsumer, get_groups_to_add, get_user_by_pk, get_file_by_id
+from channels.db import database_sync_to_async
+
+from django_private_chat2.consumers import ChatConsumer, get_groups_to_add, get_user_by_pk, get_file_by_id, \
+    get_message_by_id, get_unread_count, mark_message_as_read, save_file_message, save_text_message
 
 
 class ConsumerTests(TestCase):
     def setUp(self) -> None:
         self.u1, self.u2 = UserFactory.create(), UserFactory.create()
-        self.dialog = DialogsModelFactory.create(user1=self.u1, user2=self.u2)
-        self.file = UploadedFile.objects.create(uploaded_by=self.u1, file="LICENSE")
+        self.dialog: DialogsModel = DialogsModelFactory.create(user1=self.u1, user2=self.u2)
+        self.file: UploadedFile = UploadedFile.objects.create(uploaded_by=self.u1, file="LICENSE")
+        self.msg: MessageModel = MessageModelFactory.create(sender=self.u1, recipient=self.u2)
+        self.unread_msg: MessageModel = MessageModelFactory.create(sender=self.u1, recipient=self.u2, read=False)
 
     async def test_groups_to_add(self):
         groups = await get_groups_to_add(self.u1)
@@ -37,4 +42,15 @@ class ConsumerTests(TestCase):
         f = await get_file_by_id(self.file.id)
         self.assertEqual(f, self.file)
 
+    async def test_get_message_by_id(self):
+        m = await get_message_by_id(999999)
+        self.assertIsNone(m)
+        m = await get_message_by_id(self.msg.id)
+        t = (str(self.u2.pk), str(self.u1.pk))
+        self.assertEqual(m, t)
 
+    async def test_mark_message_as_read(self):
+        self.assertFalse(self.unread_msg.read)
+        await mark_message_as_read(self.unread_msg.id)
+        await database_sync_to_async(self.unread_msg.refresh_from_db)()
+        self.assertTrue(self.unread_msg.read)
