@@ -10,11 +10,19 @@ Tests for `django_private_chat2` models module.
 
 from django.test import TestCase
 
-from django_private_chat2.models import DialogsModel, MessageModel
+from django_private_chat2.models import DialogsModel, MessageModel, UploadedFile
 from django.forms.models import model_to_dict
 
 from django.db import IntegrityError
 from .factories import DialogsModelFactory, MessageModelFactory, UserFactory, faker
+
+
+class UploadedFileModelTests(TestCase):
+    def setUp(self) -> None:
+        self.file = UploadedFile.objects.create(uploaded_by=UserFactory.create(), file="LICENSE")
+
+    def test_str(self):
+        self.assertEqual(str(self.file), "LICENSE")
 
 
 class MessageAndDialogModelTests(TestCase):
