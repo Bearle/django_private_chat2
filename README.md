@@ -180,7 +180,9 @@ Frontend (example app) & backend
     3. Sent message received db_id
 18. Optimize /messages/ endpoint
 19. :white_check_mark:Some tests
-
+20. Full test coverage
+21. Migration from v1 guide
+22. Documentation
 
 Running Tests
 -------------
