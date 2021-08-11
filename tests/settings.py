@@ -13,10 +13,21 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
 
 DATABASES = {
-    "default": {
+    'default': {
         "ENGINE": "django.db.backends.sqlite3",
-        'NAME': os.path.join(os.path.dirname(__file__), 'test.db'),
-        'TEST_NAME': os.path.join(os.path.dirname(__file__), 'test.db'),
+        'NAME': ':memory:',
+        # 'NAME': os.path.join(os.path.dirname(__file__), 'test.db'),
+        # 'TEST_NAME': os.path.join(os.path.dirname(__file__), 'test.db'),
+    },
+
+    "pg": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("SQL_DATABASE", "django_private_chat2_test"),
+        "USER": os.environ.get("SQL_USER", "delneg"),
+        # "PASSWORD": os.environ.get("SQL_PASSWORD", "password"),
+        "HOST": os.environ.get("SQL_HOST", "localhost"),
+        "PORT": os.environ.get("SQL_PORT", "5431"),
+        'CONN_MAX_AGE': 90,
     }
 }
 
@@ -105,7 +116,6 @@ LOGGING = {
         'level': 'INFO',
     },
 }
-
 
 LANGUAGE_CODE = 'en-us'
 

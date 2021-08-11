@@ -1,3 +1,5 @@
+import asyncio
+
 from django.test import TestCase
 
 from django_private_chat2.models import DialogsModel, MessageModel, UploadedFile
@@ -73,5 +75,17 @@ class ConsumerTests(TestCase):
     async def test_connect_basic(self):
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/chat_ws")
         communicator.scope["user"] = self.u1
-        connected, subprotocol = await communicator.connect()
+        connected, _ = await communicator.connect()
         assert connected
+
+        # await asyncio.sleep(5)
+        # communicator2 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/chat_ws")
+        # communicator2.scope["user"] = self.u2
+        # connected2, _ = await communicator2.connect()
+        # assert connected2
+        # response = await communicator.receive_json_from()
+        # print('finished')
+
+
+
+

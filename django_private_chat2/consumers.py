@@ -1,3 +1,4 @@
+import asyncio
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import InMemoryChannelLayer
 from channels.db import database_sync_to_async
@@ -129,6 +130,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                             {"type": "new_unread_count", "sender": self.group_name,
                                              "unread_count": new_unreads})
 
+    async def _after_connect(self):
+        logger.info(f"User {self.user.pk} connected, getting groups...")
+        dialogs = await get_groups_to_add(self.user)
+        logger.info(f"Got {len(dialogs)} groups for {self.user.pk}, sending 'user_went_online' to {dialogs} dialog groups")
+        for d in dialogs:  # type: int
+            if str(d) != self.group_name:
+                await self.channel_layer.group_send(str(d),
+                                                    {"type": "user_went_online", "user_pk": str(self.user.pk)})
+
     async def connect(self):
         # TODO:
         # 1. Set user online
@@ -141,13 +151,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.sender_username: str = self.user.get_username()
             logger.info(f"User {self.user.pk} connected, adding {self.channel_name} to {self.group_name}")
             await self.channel_layer.group_add(self.group_name, self.channel_name)
+            await self._after_connect()
             await self.accept()
-            dialogs = await get_groups_to_add(self.user)
-            logger.info(f"User {self.user.pk} connected, sending 'user_went_online' to {dialogs} dialog groups")
-            for d in dialogs:  # type: int
-                if str(d) != self.group_name:
-                    await self.channel_layer.group_send(str(d),
-                                                        {"type": "user_went_online", "user_pk": str(self.user.pk)})
+            print('after connect')
+            # asyncio.create_task(self._after_connect())
         else:
             await self.close(code=4001)
 
