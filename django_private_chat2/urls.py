@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-from django.conf.urls import url
-from django.urls import path
+from django.urls import path, re_path
 from . import consumers
 from . import views
 
 app_name = 'django_private_chat2'
 websocket_urlpatterns = [
-    url(r'^chat_ws$', consumers.ChatConsumer.as_asgi()),
+    re_path(r'^chat_ws$', consumers.ChatConsumer.as_asgi()),
 ]
 
 urlpatterns = [
