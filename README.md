@@ -74,7 +74,8 @@ Support
 --------
 
 It's important for us to have `django_private_chat2` thoroughly tested.
-Using github actions, we're able to have `django_private_chat2` tested against python3.6, python3.7, python3.8, python3.9, python3.10 with Django 3.0, Django 3.1,  Django 3.2, Django 3.10
+
+Using github actions, we're able to have `django_private_chat2` tested against python3.6, python3.7, python3.8, python3.9, python3.10 with Django 3.0, Django 3.1,  Django 3.2, Django 4.0
 
 You can view the builds here:
 
