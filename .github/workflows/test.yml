@@ -69,11 +69,14 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements_test.txt'
+
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
           pip install -r requirements_test.txt
-          pip install ${{ matrix.django-version }}
+#          pip install ${{ matrix.django-version }}
 
       - name: Run Tests
         env:
