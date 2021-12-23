@@ -2,7 +2,7 @@ name: Test CI
 
 on:
   push:
-    branches: [ feat/github_ci ]
+    branches: [ master ]
   pull_request:
     branches: [ master ]
 
