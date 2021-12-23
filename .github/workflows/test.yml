@@ -1,0 +1,85 @@
+name: Test CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        include:
+
+          - python-version: 3.6
+            django-version: Django>=3.0,<3.1
+
+          - python-version: 3.6
+            django-version: Django>=3.1,<3.2
+
+          - python-version: 3.6
+            django-version: Django>=3.2,<3.3
+
+          - python-version: 3.7
+            django-version: Django>=3.0,<3.1
+
+          - python-version: 3.7
+            django-version: Django>=3.1,<3.2
+
+          - python-version: 3.7
+            django-version: Django>=3.2,<3.3
+
+          - python-version: 3.8
+            django-version: Django>=3.0,<3.1
+
+          - python-version: 3.8
+            django-version: Django>=3.1,<3.2
+
+          - python-version: 3.8
+            django-version: Django>=3.2,<3.3
+
+          - python-version: 3.8
+            django-version: Django>=4.0,<4.1
+
+          - python-version: 3.9
+            django-version: Django>=3.0,<3.1
+
+          - python-version: 3.9
+            django-version: Django>=3.1,<3.2
+
+          - python-version: 3.9
+            django-version: Django>=3.2,<3.3
+
+          - python-version: 3.9
+            django-version: Django>=4.0,<4.1
+
+          - python-version: "3.10"
+            django-version: Django>=3.2,<3.3
+
+          - python-version: "3.10"
+            django-version: Django>=4.0,<4.1
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: '**/requirements_test.txt'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements_test.txt
+          pip install "${{ matrix.django-version }}"
+
+      - name: Run Tests
+        env:
+          DJANGO_SETTINGS_MODULE: tests.settings
+        run: |
+          python manage.py test

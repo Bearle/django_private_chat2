@@ -3,7 +3,7 @@ Django Private Chat2
 
 ![https://badge.fury.io/py/django_private_chat2](https://badge.fury.io/py/django_private_chat2.svg)
 
-![https://travis-ci.org/Bearle/django_private_chat2](https://travis-ci.org/Bearle/django_private_chat2.svg?branch=master)
+![https://github.com/Bearle/django_private_chat2/actions](https://github.com/Bearle/django_private_chat2/actions/workflows/test.yml/badge.svg?branch=master)
 
 ![https://codecov.io/gh/Bearle/django_private_chat2](https://codecov.io/gh/Bearle/django_private_chat2/branch/master/graph/badge.svg)
 
@@ -73,13 +73,14 @@ It's up to you to do so. The example app does it in `urls.py` so feel free to co
 Support
 --------
 
-
-`django_private_chat2` is tested against python3.6, python3.7, python3.8, python3.9 with Django 3.0, Django 3.1 and Django 3.2.
+It's important for us to have `django_private_chat2` thoroughly tested.
+Using github actions, we're able to have `django_private_chat2` tested against python3.6, python3.7, python3.8, python3.9, python3.10 with Django 3.0, Django 3.1,  Django 3.2, Django 3.10
 
 You can view the builds here:
 
-https://travis-ci.com/github/Bearle/django_private_chat2/builds/
+https://github.com/Bearle/django_private_chat2/actions
 
+The builds are composed of officially supported Django & Python combinations.
 
 Please file an issue if you have any problems with any combination of the above. 
 

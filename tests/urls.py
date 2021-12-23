@@ -1,5 +1,5 @@
-from django.conf.urls import url, include
+from django.urls import re_path, include
 
 urlpatterns = [
-    url(r'', include('django_private_chat2.urls', namespace='django_private_chat2')),
+    re_path(r'', include('django_private_chat2.urls', namespace='django_private_chat2')),
 ]
