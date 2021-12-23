@@ -76,8 +76,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements_test.txt
-          echo "${{ matrix.django-version }}"
-#          pip install ${{ matrix.django-version }}
+          pip install "${{ matrix.django-version }}"
 
       - name: Run Tests
         env:
