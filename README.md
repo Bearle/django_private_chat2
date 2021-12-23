@@ -3,7 +3,7 @@ Django Private Chat2
 
 ![https://badge.fury.io/py/django_private_chat2](https://badge.fury.io/py/django_private_chat2.svg)
 
-![https://travis-ci.org/Bearle/django_private_chat2](https://travis-ci.org/Bearle/django_private_chat2.svg?branch=master)
+![https://github.com/Bearle/django_private_chat2/actions](https://github.com/Bearle/django_private_chat2/actions/workflows/test.yml/badge.svg?branch=master)
 
 ![https://codecov.io/gh/Bearle/django_private_chat2](https://codecov.io/gh/Bearle/django_private_chat2/branch/master/graph/badge.svg)
 
