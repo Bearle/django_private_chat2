@@ -2,6 +2,13 @@
 
 History
 -------
+1.0.0 (2021-12-23)
+++++++++++++++++++
+
+* Support django 4.0
+* Switch to GithubCI instead of travis
+* Seems good enough to make it 1.0.0
+
 
 0.1.4 (2021-04-01)
 ++++++++++++++++++
