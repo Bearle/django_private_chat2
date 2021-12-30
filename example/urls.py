@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals, absolute_import
 
-from django.conf.urls import url, include
-from django.urls import path
+from django.urls import path, re_path, include
 from django.contrib import admin
 from django.views.generic import TemplateView, ListView
 from django.contrib.auth.decorators import login_required
@@ -35,8 +34,8 @@ class UsersListView(LoginRequiredMixin, ListView):
 
 
 urlpatterns = [
-    url('admin/', admin.site.urls),
-    url(r'', include('django_private_chat2.urls', namespace='django_private_chat2')),
+    re_path('admin/', admin.site.urls),
+    re_path(r'', include('django_private_chat2.urls', namespace='django_private_chat2')),
     path('users/', UsersListView.as_view(), name='users_list'),
     path('', login_required(TemplateView.as_view(template_name='base.html')), name='home'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
