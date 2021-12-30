@@ -1,121 +1,20 @@
-from channels.generic.websocket import AsyncWebsocketConsumer
-from channels.layers import InMemoryChannelLayer
-from channels.db import database_sync_to_async
-from .models import MessageModel, DialogsModel, UserModel, UploadedFile
-from .serializers import serialize_file_model
-from typing import List, Set, Awaitable, Optional, Dict, Tuple
-from django.contrib.auth.models import AbstractBaseUser
-from django.conf import settings
-from django.core.exceptions import ValidationError
-import logging
 import json
-import enum
-import sys
+from typing import Optional, Dict, Tuple
 
-try:
-    from typing import TypedDict
-except ImportError:
-    TypedDict = dict
+from channels.generic.websocket import AsyncWebsocketConsumer
+from django.contrib.auth.models import AbstractBaseUser
+
+from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id, get_message_by_id, \
+    save_file_message, save_text_message, mark_message_as_read
+from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage
+from .errors import ErrorTypes, ErrorDescription
+from django_private_chat2.models import MessageModel, UploadedFile
+from django_private_chat2.serializers import serialize_file_model
+from django.conf import settings
+import logging
 
 logger = logging.getLogger('django_private_chat2.consumers')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
-
-
-class ErrorTypes(enum.IntEnum):
-    MessageParsingError = 1
-    TextMessageInvalid = 2
-    InvalidMessageReadId = 3
-    InvalidUserPk = 4
-    InvalidRandomId = 5
-    FileMessageInvalid = 6
-    FileDoesNotExist = 7
-
-
-ErrorDescription = Tuple[ErrorTypes, str]
-
-
-# TODO: add tx_id to distinguish errors for different transactions
-
-class MessageTypeTextMessage(TypedDict):
-    text: str
-    user_pk: str
-    random_id: int
-
-
-class MessageTypeMessageRead(TypedDict):
-    user_pk: str
-    message_id: int
-
-
-class MessageTypeFileMessage(TypedDict):
-    file_id: str
-    user_pk: str
-    random_id: int
-
-
-class MessageTypes(enum.IntEnum):
-    WentOnline = 1
-    WentOffline = 2
-    TextMessage = 3
-    FileMessage = 4
-    IsTyping = 5
-    MessageRead = 6
-    ErrorOccurred = 7
-    MessageIdCreated = 8
-    NewUnreadCount = 9
-
-
-@database_sync_to_async
-def get_groups_to_add(u: AbstractBaseUser) -> Awaitable[Set[int]]:
-    l = DialogsModel.get_dialogs_for_user(u)
-    return set(list(sum(l, ())))
-
-
-@database_sync_to_async
-def get_user_by_pk(pk: str) -> Awaitable[Optional[AbstractBaseUser]]:
-    return UserModel.objects.filter(pk=pk).first()
-
-
-@database_sync_to_async
-def get_file_by_id(file_id: str) -> Awaitable[Optional[UploadedFile]]:
-    try:
-        f = UploadedFile.objects.filter(id=file_id).first()
-    except ValidationError:
-        f = None
-    return f
-
-
-@database_sync_to_async
-def get_message_by_id(mid: int) -> Awaitable[Optional[Tuple[str, str]]]:
-    msg: Optional[MessageModel] = MessageModel.objects.filter(id=mid).first()
-    if msg:
-        return str(msg.recipient.pk), str(msg.sender.pk)
-    else:
-        return None
-
-
-# @database_sync_to_async
-# def mark_message_as_read(mid: int, sender_pk: str, recipient_pk: str):
-#     return MessageModel.objects.filter(id__lte=mid,sender_id=sender_pk, recipient_id=recipient_pk).update(read=True)
-
-@database_sync_to_async
-def mark_message_as_read(mid: int) -> Awaitable[None]:
-    return MessageModel.objects.filter(id=mid).update(read=True)
-
-
-@database_sync_to_async
-def get_unread_count(sender, recipient) -> Awaitable[int]:
-    return int(MessageModel.get_unread_count_for_dialog_with_user(sender, recipient))
-
-
-@database_sync_to_async
-def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
-    return MessageModel.objects.create(text=text, sender=from_, recipient=to)
-
-
-@database_sync_to_async
-def save_file_message(file: UploadedFile, from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
-    return MessageModel.objects.create(file=file, sender=from_, recipient=to)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -179,6 +78,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 for d in dialogs:
                     if str(d) != self.group_name:
                         await self.channel_layer.group_send(str(d), {"type": "is_typing",
+                                                                     "user_pk": str(self.user.pk)})
+                return None
+            elif msg_type == MessageTypes.TypingStopped:
+                dialogs = await get_groups_to_add(self.user)
+                logger.info(
+                    f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
+                for d in dialogs:
+                    if str(d) != self.group_name:
+                        await self.channel_layer.group_send(str(d), {"type": "stopped_typing",
                                                                      "user_pk": str(self.user.pk)})
                 return None
             elif msg_type == MessageTypes.MessageRead:
@@ -396,6 +304,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(
             text_data=json.dumps({
                 'msg_type': MessageTypes.IsTyping,
+                'user_pk': event['user_pk']
+            }))
+
+    async def stopped_typing(self, event):
+        await self.send(
+            text_data=json.dumps({
+                'msg_type': MessageTypes.TypingStopped,
                 'user_pk': event['user_pk']
             }))
 
