@@ -192,9 +192,9 @@ module AppTypes =
 
     type ErrorDescription = ErrorTypes * string
 
-    type MessageTypeErrorOccured =
+    type MessageTypeErrorOccurred =
         { error: ErrorDescription }
-        static member Decoder: Decoder<MessageTypeErrorOccured> =
+        static member Decoder: Decoder<MessageTypeErrorOccurred> =
           Decode.object (fun get ->
               { error=get.Required.Field "error" (Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string) })
 
@@ -210,7 +210,7 @@ module AppTypes =
         | FileMessage = 4
         | IsTyping = 5
         | MessageRead = 6
-        | ErrorOccured = 7
+        | ErrorOccurred = 7
         | MessageIdCreated = 8
         | NewUnreadCount = 9
 

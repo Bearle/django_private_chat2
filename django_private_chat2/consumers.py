@@ -60,7 +60,7 @@ class MessageTypes(enum.IntEnum):
     FileMessage = 4
     IsTyping = 5
     MessageRead = 6
-    ErrorOccured = 7
+    ErrorOccurred = 7
     MessageIdCreated = 8
     NewUnreadCount = 9
 
@@ -170,7 +170,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if msg_type == MessageTypes.WentOffline \
             or msg_type == MessageTypes.WentOnline \
             or msg_type == MessageTypes.MessageIdCreated \
-            or msg_type == MessageTypes.ErrorOccured:
+            or msg_type == MessageTypes.ErrorOccurred:
             logger.info(f"Ignoring message {msg_type.name}")
         else:
             if msg_type == MessageTypes.IsTyping:
@@ -339,7 +339,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             error = (ErrorTypes.MessageParsingError, f"jsonDecodeError - {e}")
         if error is not None:
             error_data = {
-                'msg_type': MessageTypes.ErrorOccured,
+                'msg_type': MessageTypes.ErrorOccurred,
                 'error': error
             }
             logger.info(f"Will send error {error_data} to {self.group_name}")
