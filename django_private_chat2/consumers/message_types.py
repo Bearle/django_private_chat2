@@ -1,9 +1,10 @@
 import enum
+import json
 
 # TODO: add tx_id to distinguish errors for different transactions
 
 try:
-    from typing import TypedDict
+    from typing import TypedDict, NamedTuple
 except ImportError:
     TypedDict = dict
 
@@ -36,3 +37,40 @@ class MessageTypes(enum.IntEnum):
     MessageIdCreated = 8
     NewUnreadCount = 9
     TypingStopped = 10
+
+
+# class OutgoingEventBase(TypedDict):
+#
+
+class OutgoingEventMessageRead(NamedTuple):
+    message_id: int
+    sender: str
+    receiver: str
+    type: str = "message_read"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            'msg_type': MessageTypes.MessageRead,
+            'message_id': self.message_id,
+            'sender': self.sender,
+            'receiver': self.receiver
+        })
+
+
+class OutgoingEventNewTextMessage(NamedTuple):
+    random_id: int
+    text: str
+    sender: str
+    receiver: str
+    sender_username: str
+    type: str = "new_text_message"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            'msg_type': MessageTypes.TextMessage,
+            "random_id": self.random_id,
+            "text": self.text,
+            "sender": self.sender,
+            "receiver": self.receiver,
+            "sender_username": self.sender_username,
+        })

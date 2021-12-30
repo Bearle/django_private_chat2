@@ -6,14 +6,15 @@ from django.contrib.auth.models import AbstractBaseUser
 
 from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id, get_message_by_id, \
     save_file_message, save_text_message, mark_message_as_read
-from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage
+from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
+    OutgoingEventMessageRead, OutgoingEventNewTextMessage
 from .errors import ErrorTypes, ErrorDescription
 from django_private_chat2.models import MessageModel, UploadedFile
 from django_private_chat2.serializers import serialize_file_model
 from django.conf import settings
 import logging
 
-logger = logging.getLogger('django_private_chat2.consumers')
+logger = logging.getLogger('django_private_chat2.chat_consumer')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 
 
@@ -108,10 +109,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     mid = data['message_id']
                     logger.info(
                         f"Validation passed, marking msg from {user_pk} to {self.group_name} with id {mid} as read")
-                    await self.channel_layer.group_send(user_pk, {"type": "message_read",
-                                                                  "message_id": mid,
-                                                                  "sender": user_pk,
-                                                                  "receiver": self.group_name})
+
+                    await self.channel_layer.group_send(user_pk,
+                                                        OutgoingEventMessageRead(message_id=mid, sender=user_pk,
+                                                                                 receiver=self.group_name)._asdict())
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
                     if not recipient:
@@ -208,13 +209,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     # considered delivered only when it's saved to database and received a proper id,
                     # which is then broadcast separately both to sender & receiver.
                     logger.info(f"Validation passed, sending text message from {self.group_name} to {user_pk}")
-                    await self.channel_layer.group_send(user_pk, {"type": "new_text_message",
-                                                                  "random_id": rid,
-                                                                  "text": text,
-                                                                  "sender": self.group_name,
-                                                                  "receiver": user_pk,
-                                                                  "sender_username": self.sender_username})
-
+                    await self.channel_layer.group_send(user_pk, OutgoingEventNewTextMessage(random_id=rid,
+                                                                                             text=text,
+                                                                                             sender=self.group_name,
+                                                                                             receiver=user_pk,
+                                                                                             sender_username=self.sender_username)._asdict())
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
                     if not recipient:
@@ -261,14 +260,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'unread_count': event['unread_count']
             }))
 
-    async def message_read(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.MessageRead,
-                'message_id': event['message_id'],
-                'sender': event['sender'],
-                'receiver': event['receiver']
-            }))
+    async def message_read(self, event: dict):
+        await self.send(text_data=OutgoingEventMessageRead(**event).to_json())
 
     async def message_id_created(self, event):
         await self.send(
@@ -278,16 +271,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'db_id': event['db_id']
             }))
 
-    async def new_text_message(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.TextMessage,
-                "random_id": event['random_id'],
-                "text": event['text'],
-                "sender": event['sender'],
-                "receiver": event['receiver'],
-                "sender_username": event['sender_username'],
-            }))
+    async def new_text_message(self, event: dict):
+        await self.send(text_data=OutgoingEventNewTextMessage(**event).to_json())
 
     async def new_file_message(self, event):
         await self.send(
