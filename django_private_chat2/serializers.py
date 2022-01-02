@@ -1,14 +1,14 @@
 from .models import MessageModel, DialogsModel, UserModel, UploadedFile
-from typing import Optional
+from typing import Optional, Dict
 import os
 
 
-def serialize_file_model(m: UploadedFile) -> dict[str | str]:
+def serialize_file_model(m: UploadedFile) -> Dict[str | str]:
     return {'id': str(m.id), 'url': m.file.url,
             'size': m.file.size, 'name': os.path.basename(m.file.name)}
 
 
-def serialize_message_model(m: MessageModel, user_id) -> dict[str, bool | dict[str, str | bytes] | None | int | str]:
+def serialize_message_model(m: MessageModel, user_id) -> Dict[str, bool | Dict[str, str] | None | int | str]:
     sender_pk = m.sender.pk
     is_out = sender_pk == user_id
     # TODO: add forwards
