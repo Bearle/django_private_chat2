@@ -2,9 +2,9 @@ import enum
 import json
 
 # TODO: add tx_id to distinguish errors for different transactions
-
+from typing import NamedTuple
 try:
-    from typing import TypedDict, NamedTuple
+    from typing import TypedDict
 except ImportError:
     TypedDict = dict
 
