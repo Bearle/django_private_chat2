@@ -50,10 +50,10 @@ class OutgoingEventMessageRead(NamedTuple):
 
     def to_json(self) -> str:
         return json.dumps({
-            'msg_type': MessageTypes.MessageRead,
-            'message_id': self.message_id,
-            'sender': self.sender,
-            'receiver': self.receiver
+            "msg_type": MessageTypes.MessageRead,
+            "message_id": self.message_id,
+            "sender": self.sender,
+            "receiver": self.receiver
         })
 
 
@@ -67,9 +67,28 @@ class OutgoingEventNewTextMessage(NamedTuple):
 
     def to_json(self) -> str:
         return json.dumps({
-            'msg_type': MessageTypes.TextMessage,
+            "msg_type": MessageTypes.TextMessage,
             "random_id": self.random_id,
             "text": self.text,
+            "sender": self.sender,
+            "receiver": self.receiver,
+            "sender_username": self.sender_username,
+        })
+
+
+class OutgoingEventNewFileMessage(NamedTuple):
+    db_id: int
+    file: dict[str, str]
+    sender: str
+    receiver: str
+    sender_username: str
+    type: str = "new_file_message"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.FileMessage,
+            "db_id": self.db_id,
+            "file": self.file,
             "sender": self.sender,
             "receiver": self.receiver,
             "sender_username": self.sender_username,
@@ -83,7 +102,7 @@ class OutgoingEventNewUnreadCount(NamedTuple):
 
     def to_json(self) -> str:
         return json.dumps({
-            'msg_type': MessageTypes.NewUnreadCount,
+            "msg_type": MessageTypes.NewUnreadCount,
             "sender": self.sender,
             "unread_count": self.unread_count,
         })
@@ -96,7 +115,18 @@ class OutgoingEventMessageIdCreated(NamedTuple):
 
     def to_json(self) -> str:
         return json.dumps({
-            'msg_type': MessageTypes.MessageIdCreated,
+            "msg_type": MessageTypes.MessageIdCreated,
             "random_id": self.random_id,
             "db_id": self.db_id,
+        })
+
+
+class OutgoingEventIsTyping(NamedTuple):
+    user_pk: str
+    type: str = "is_typing"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.IsTyping,
+            "user_pk": self.user_pk
         })

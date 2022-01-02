@@ -7,7 +7,9 @@ from django.contrib.auth.models import AbstractBaseUser
 from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id, get_message_by_id, \
     save_file_message, save_text_message, mark_message_as_read
 from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
-    OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated
+    OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated,\
+    OutgoingEventNewFileMessage, OutgoingEventIsTyping
+
 from .errors import ErrorTypes, ErrorDescription
 from django_private_chat2.models import MessageModel, UploadedFile
 from django_private_chat2.serializers import serialize_file_model
@@ -78,8 +80,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 logger.info(f"User {self.user.pk} is typing, sending 'is_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
-                        await self.channel_layer.group_send(str(d), {"type": "is_typing",
-                                                                     "user_pk": str(self.user.pk)})
+                        await self.channel_layer.group_send(str(d), OutgoingEventIsTyping(user_pk=str(self.user.pk))._asdict())
                 return None
             elif msg_type == MessageTypes.TypingStopped:
                 dialogs = await get_groups_to_add(self.user)
@@ -171,12 +172,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             await self._after_message_save(msg, rid=rid, user_pk=user_pk)
                             logger.info(f"Sending file message for file {file_id} from {self.user} to {recipient}")
                             # We don't need to send random_id here because we've already saved the file to db
-                            await self.channel_layer.group_send(user_pk, {"type": "new_file_message",
-                                                                          "db_id": msg.id,
-                                                                          "file": serialize_file_model(file),
-                                                                          "sender": self.group_name,
-                                                                          "receiver": user_pk,
-                                                                          "sender_username": self.sender_username})
+
+                            await self.channel_layer.group_send(user_pk,
+                                                                OutgoingEventNewFileMessage(db_id=msg.id,
+                                                                                            file=serialize_file_model(file),
+                                                                                            sender=self.group_name,
+                                                                                            receiver=user_pk,
+                                                                                            sender_username=self.sender_username)._asdict())
 
             elif msg_type == MessageTypes.TextMessage:
                 data: MessageTypeTextMessage
@@ -264,23 +266,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def new_text_message(self, event: dict):
         await self.send(text_data=OutgoingEventNewTextMessage(**event).to_json())
 
-    async def new_file_message(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.FileMessage,
-                "db_id": event['db_id'],
-                "file": event['file'],
-                "sender": event['sender'],
-                "receiver": event['receiver'],
-                "sender_username": event['sender_username'],
-            }))
+    async def new_file_message(self, event: dict):
+        await self.send(text_data=OutgoingEventNewFileMessage(**event).to_json())
 
-    async def is_typing(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.IsTyping,
-                'user_pk': event['user_pk']
-            }))
+    async def is_typing(self, event: dict):
+        await self.send(text_data=OutgoingEventIsTyping(**event).to_json())
 
     async def stopped_typing(self, event):
         await self.send(
