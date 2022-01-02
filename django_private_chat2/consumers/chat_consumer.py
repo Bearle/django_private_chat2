@@ -8,7 +8,7 @@ from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, 
     save_file_message, save_text_message, mark_message_as_read
 from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
     OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated,\
-    OutgoingEventNewFileMessage, OutgoingEventIsTyping
+    OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping, OutgoingEventWentOnline, OutgoingEventWentOffline
 
 from .errors import ErrorTypes, ErrorDescription
 from django_private_chat2.models import MessageModel, UploadedFile
@@ -27,9 +27,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(user_pk, ev)
         await self.channel_layer.group_send(self.group_name, ev)
         new_unreads = await get_unread_count(self.group_name, user_pk)
-        await self.channel_layer.group_send(user_pk,
-                                            {"type": "new_unread_count", "sender": self.group_name,
-                                             "unread_count": new_unreads})
+        await self.channel_layer.group_send(user_pk, OutgoingEventNewUnreadCount(sender=self.group_name, unread_count=new_unreads)._asdict())
 
     async def connect(self):
         # TODO:
@@ -48,8 +46,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"User {self.user.pk} connected, sending 'user_went_online' to {dialogs} dialog groups")
             for d in dialogs:  # type: int
                 if str(d) != self.group_name:
-                    await self.channel_layer.group_send(str(d),
-                                                        {"type": "user_went_online", "user_pk": str(self.user.pk)})
+                    await self.channel_layer.group_send(str(d), OutgoingEventWentOnline(user_pk=str(self.user.pk))._asdict())
         else:
             await self.close(code=4001)
 
@@ -65,7 +62,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             dialogs = await get_groups_to_add(self.user)
             logger.info(f"User {self.user.pk} disconnected, sending 'user_went_offline' to {dialogs} dialog groups")
             for d in dialogs:
-                await self.channel_layer.group_send(str(d), {"type": "user_went_offline", "user_pk": str(self.user.pk)})
+                await self.channel_layer.group_send(str(d), OutgoingEventWentOffline(user_pk=str(self.user.pk))._asdict())
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
         logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
@@ -88,8 +85,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
-                        await self.channel_layer.group_send(str(d), {"type": "stopped_typing",
-                                                                     "user_pk": str(self.user.pk)})
+                        await self.channel_layer.group_send(str(d), OutgoingEventStoppedTyping(user_pk=str(self.user.pk))._asdict())
                 return None
             elif msg_type == MessageTypes.MessageRead:
                 data: MessageTypeMessageRead
@@ -272,23 +268,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def is_typing(self, event: dict):
         await self.send(text_data=OutgoingEventIsTyping(**event).to_json())
 
-    async def stopped_typing(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.TypingStopped,
-                'user_pk': event['user_pk']
-            }))
+    async def stopped_typing(self, event: dict):
+        await self.send(text_data=OutgoingEventStoppedTyping(**event).to_json())
 
     async def user_went_online(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.WentOnline,
-                'user_pk': event['user_pk']
-            }))
+        await self.send(text_data=OutgoingEventWentOnline(**event).to_json())
 
     async def user_went_offline(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.WentOffline,
-                'user_pk': event['user_pk']
-            }))
+        await self.send(text_data=OutgoingEventWentOffline(**event).to_json())

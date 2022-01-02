@@ -130,3 +130,36 @@ class OutgoingEventIsTyping(NamedTuple):
             "msg_type": MessageTypes.IsTyping,
             "user_pk": self.user_pk
         })
+
+
+class OutgoingEventStoppedTyping(NamedTuple):
+    user_pk: str
+    type: str = "stopped_typing"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.TypingStopped,
+            "user_pk": self.user_pk
+        })
+
+
+class OutgoingEventWentOnline(NamedTuple):
+    user_pk: str
+    type: str = "user_went_online"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.WentOnline,
+            "user_pk": self.user_pk
+        })
+
+
+class OutgoingEventWentOffline(NamedTuple):
+    user_pk: str
+    type: str = "user_went_offline"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "msg_type": MessageTypes.WentOffline,
+            "user_pk": self.user_pk
+        })
