@@ -12,7 +12,6 @@ def serialize_message_model(m: MessageModel, user_id) -> Dict[str, bool | Dict[s
     sender_pk = m.sender.pk
     is_out = sender_pk == user_id
     # TODO: add forwards
-    # TODO: add replies
     obj = {
         "id": m.id,
         "text": m.text,
