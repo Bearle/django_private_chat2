@@ -7,7 +7,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id, get_message_by_id, \
     save_file_message, save_text_message, mark_message_as_read
 from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
-    OutgoingEventMessageRead, OutgoingEventNewTextMessage
+    OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated
 from .errors import ErrorTypes, ErrorDescription
 from django_private_chat2.models import MessageModel, UploadedFile
 from django_private_chat2.serializers import serialize_file_model
@@ -20,7 +20,7 @@ TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def _after_message_save(self, msg: MessageModel, rid: int, user_pk: str):
-        ev = {"type": "message_id_created", "random_id": rid, "db_id": msg.id}
+        ev = OutgoingEventMessageIdCreated(random_id=rid, db_id=msg.id)._asdict()
         logger.info(f"Message with id {msg.id} saved, firing events to {user_pk} & {self.group_name}")
         await self.channel_layer.group_send(user_pk, ev)
         await self.channel_layer.group_send(self.group_name, ev)
@@ -127,8 +127,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             await mark_message_as_read(mid)
                             new_unreads = await get_unread_count(user_pk, self.group_name)
                             await self.channel_layer.group_send(self.group_name,
-                                                                {"type": "new_unread_count", "sender": user_pk,
-                                                                 "unread_count": new_unreads})
+                                                                OutgoingEventNewUnreadCount(sender=user_pk,
+                                                                                            unread_count=new_unreads)._asdict())
                             # await mark_message_as_read(mid, sender_pk=user_pk, recipient_pk=self.group_name)
 
                 return None
@@ -252,24 +252,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"Will send error {error_data} to {self.group_name}")
             await self.send(text_data=json.dumps(error_data))
 
-    async def new_unread_count(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.NewUnreadCount,
-                'sender': event['sender'],
-                'unread_count': event['unread_count']
-            }))
+    async def new_unread_count(self, event: dict):
+        await self.send(text_data=OutgoingEventNewUnreadCount(**event).to_json())
 
     async def message_read(self, event: dict):
         await self.send(text_data=OutgoingEventMessageRead(**event).to_json())
 
-    async def message_id_created(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.MessageIdCreated,
-                'random_id': event['random_id'],
-                'db_id': event['db_id']
-            }))
+    async def message_id_created(self, event: dict):
+        await self.send(text_data=OutgoingEventMessageIdCreated(**event).to_json())
 
     async def new_text_message(self, event: dict):
         await self.send(text_data=OutgoingEventNewTextMessage(**event).to_json())

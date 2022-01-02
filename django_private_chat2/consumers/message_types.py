@@ -74,3 +74,29 @@ class OutgoingEventNewTextMessage(NamedTuple):
             "receiver": self.receiver,
             "sender_username": self.sender_username,
         })
+
+
+class OutgoingEventNewUnreadCount(NamedTuple):
+    sender: str
+    unread_count: int
+    type: str = "new_unread_count"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            'msg_type': MessageTypes.NewUnreadCount,
+            "sender": self.sender,
+            "unread_count": self.unread_count,
+        })
+
+
+class OutgoingEventMessageIdCreated(NamedTuple):
+    random_id: int
+    db_id: int
+    type: str = "message_id_created"
+
+    def to_json(self) -> str:
+        return json.dumps({
+            'msg_type': MessageTypes.MessageIdCreated,
+            "random_id": self.random_id,
+            "db_id": self.db_id,
+        })
