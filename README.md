@@ -122,6 +122,7 @@ __Functionality-related__
 
 -:white_check_mark: Upload the file first, send the message later (async uploads) - potential for file ref re-use later
 
+-:white_check_mark: Reply to messages
 ... and more
 
 
@@ -167,7 +168,7 @@ Frontend (example app) & backend
 7. Last seen
 8. Send photo
 9. :white_check_mark: Send file
-10. Reply to message
+10. :white_check_mark: Reply to message
 11. Delete message
 12. Forward message
 13. Search for dialog (username)

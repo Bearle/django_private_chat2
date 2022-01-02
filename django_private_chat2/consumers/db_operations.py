@@ -49,10 +49,10 @@ def get_unread_count(sender, recipient) -> Awaitable[int]:
 
 
 @database_sync_to_async
-def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
-    return MessageModel.objects.create(text=text, sender=from_, recipient=to)
+def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser, reply_to: Optional[MessageModel] = None) -> Awaitable[MessageModel]:
+    return MessageModel.objects.create(text=text, sender=from_, recipient=to, reply_to=reply_to)
 
 
 @database_sync_to_async
-def save_file_message(file: UploadedFile, from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
-    return MessageModel.objects.create(file=file, sender=from_, recipient=to)
+def save_file_message(file: UploadedFile, from_: AbstractBaseUser, to: AbstractBaseUser, reply_to: Optional[MessageModel] = None) -> Awaitable[MessageModel]:
+    return MessageModel.objects.create(file=file, sender=from_, recipient=to, reply_to=reply_to)

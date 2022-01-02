@@ -71,6 +71,7 @@ class MessageModel(TimeStampedModel, SoftDeletableModel):
                              verbose_name=_("File"), blank=True, null=True)
 
     read = models.BooleanField(verbose_name=_("Read"), default=False)
+    reply_to = models.ForeignKey('self', on_delete=models.CASCADE, verbose_name=_("Reply to"), related_name='replies', db_index=True, null=True, blank=True)
     all_objects = models.Manager()
 
     @staticmethod

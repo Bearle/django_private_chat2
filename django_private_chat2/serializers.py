@@ -23,7 +23,8 @@ def serialize_message_model(m: MessageModel, user_id) -> dict[str, bool | dict[s
         "sender": str(sender_pk),
         "recipient": str(m.recipient.pk),
         "out": is_out,
-        "sender_username": m.sender.get_username()
+        "sender_username": m.sender.get_username(),
+        "reply_to": m.reply_to.id if m.reply_to else None
     }
     return obj
 

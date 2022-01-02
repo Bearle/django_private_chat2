@@ -7,8 +7,9 @@ from django.contrib.auth.models import AbstractBaseUser
 from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id, get_message_by_id, \
     save_file_message, save_text_message, mark_message_as_read
 from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
-    OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated,\
-    OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping, OutgoingEventWentOnline, OutgoingEventWentOffline
+    OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated, \
+    OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping, OutgoingEventWentOnline, \
+    OutgoingEventWentOffline
 
 from .errors import ErrorTypes, ErrorDescription
 from django_private_chat2.models import MessageModel, UploadedFile
@@ -20,6 +21,7 @@ logger = logging.getLogger('django_private_chat2.chat_consumer')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 UNAUTH_REJECT_CODE: int = 4001
 
+
 class ChatConsumer(AsyncWebsocketConsumer):
     async def _after_message_save(self, msg: MessageModel, rid: int, user_pk: str):
         ev = OutgoingEventMessageIdCreated(random_id=rid, db_id=msg.id)._asdict()
@@ -27,7 +29,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(user_pk, ev)
         await self.channel_layer.group_send(self.group_name, ev)
         new_unreads = await get_unread_count(self.group_name, user_pk)
-        await self.channel_layer.group_send(user_pk, OutgoingEventNewUnreadCount(sender=self.group_name, unread_count=new_unreads)._asdict())
+        await self.channel_layer.group_send(user_pk, OutgoingEventNewUnreadCount(sender=self.group_name,
+                                                                                 unread_count=new_unreads)._asdict())
 
     async def connect(self):
         # TODO:
@@ -46,7 +49,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"User {self.user.pk} connected, sending 'user_went_online' to {dialogs} dialog groups")
             for d in dialogs:  # type: int
                 if str(d) != self.group_name:
-                    await self.channel_layer.group_send(str(d), OutgoingEventWentOnline(user_pk=str(self.user.pk))._asdict())
+                    await self.channel_layer.group_send(str(d),
+                                                        OutgoingEventWentOnline(user_pk=str(self.user.pk))._asdict())
         else:
             logger.info(f"Rejecting unauthenticated user with code {UNAUTH_REJECT_CODE}")
             await self.close(code=UNAUTH_REJECT_CODE)
@@ -63,7 +67,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             dialogs = await get_groups_to_add(self.user)
             logger.info(f"User {self.user.pk} disconnected, sending 'user_went_offline' to {dialogs} dialog groups")
             for d in dialogs:
-                await self.channel_layer.group_send(str(d), OutgoingEventWentOffline(user_pk=str(self.user.pk))._asdict())
+                await self.channel_layer.group_send(str(d),
+                                                    OutgoingEventWentOffline(user_pk=str(self.user.pk))._asdict())
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
         logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
@@ -78,7 +83,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 logger.info(f"User {self.user.pk} is typing, sending 'is_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
-                        await self.channel_layer.group_send(str(d), OutgoingEventIsTyping(user_pk=str(self.user.pk))._asdict())
+                        await self.channel_layer.group_send(str(d),
+                                                            OutgoingEventIsTyping(user_pk=str(self.user.pk))._asdict())
                 return None
             elif msg_type == MessageTypes.TypingStopped:
                 dialogs = await get_groups_to_add(self.user)
@@ -86,7 +92,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
-                        await self.channel_layer.group_send(str(d), OutgoingEventStoppedTyping(user_pk=str(self.user.pk))._asdict())
+                        await self.channel_layer.group_send(str(d), OutgoingEventStoppedTyping(
+                            user_pk=str(self.user.pk))._asdict())
                 return None
             elif msg_type == MessageTypes.MessageRead:
                 data: MessageTypeMessageRead
@@ -152,6 +159,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     file_id = data['file_id']
                     user_pk = data['user_pk']
                     rid = data['random_id']
+                    reply_to: Optional[int] = data['reply_to'] if 'reply_to' in data else None
                     # We can't send the message right away like in the case with text message
                     # because we don't have the file url.
                     file: Optional[UploadedFile] = await get_file_by_id(file_id)
@@ -161,11 +169,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     else:
                         recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                         logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+                        reply_to_msg: Optional[MessageModel] = None
+                        if reply_to is not None:
+                            reply_to_msg = await get_message_by_id(reply_to)
+                            if not reply_to_msg:
+                                return ErrorTypes.InvalidReplyMsgId, f"Message with id {reply_to} was not found"
                         if not recipient:
                             return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
                         else:
                             logger.info(f"Will save file message from {self.user} to {recipient}")
-                            msg = await save_file_message(file, from_=self.user, to=recipient)
+                            msg = await save_file_message(file, from_=self.user, to=recipient, reply_to=reply_to_msg)
                             await self._after_message_save(msg, rid=rid, user_pk=user_pk)
                             logger.info(f"Sending file message for file {file_id} from {self.user} to {recipient}")
                             # We don't need to send random_id here because we've already saved the file to db
@@ -175,8 +188,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                                                                             file=serialize_file_model(file),
                                                                                             sender=self.group_name,
                                                                                             receiver=user_pk,
+                                                                                            reply_to=reply_to,
                                                                                             sender_username=self.sender_username)._asdict())
-
             elif msg_type == MessageTypes.TextMessage:
                 data: MessageTypeTextMessage
                 if 'text' not in data:
@@ -201,6 +214,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     text = data['text']
                     user_pk = data['user_pk']
                     rid = data['random_id']
+                    reply_to: Optional[int] = data['reply_to'] if 'reply_to' in data else None
                     # first we send data to channel layer to not perform any synchronous operations,
                     # and only after we do sync DB stuff
                     # We need to create a 'random id' - a temporary id for the message, which is not yet
@@ -212,14 +226,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                                                                              text=text,
                                                                                              sender=self.group_name,
                                                                                              receiver=user_pk,
+                                                                                             reply_to=reply_to,
                                                                                              sender_username=self.sender_username)._asdict())
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+                    reply_to_msg: Optional[MessageModel] = None
+                    if reply_to is not None:
+                        reply_to_msg = await get_message_by_id(reply_to)
+                        if not reply_to_msg:
+                            return ErrorTypes.InvalidReplyMsgId, f"Message with id {reply_to} was not found"
                     if not recipient:
                         return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
                     else:
                         logger.info(f"Will save text message from {self.user} to {recipient}")
-                        msg = await save_text_message(text, from_=self.user, to=recipient)
+                        msg = await save_text_message(text, from_=self.user, to=recipient, reply_to=reply_to_msg)
                         await self._after_message_save(msg, rid=rid, user_pk=user_pk)
 
     # Receive message from WebSocket
