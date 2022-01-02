@@ -18,7 +18,7 @@ import logging
 
 logger = logging.getLogger('django_private_chat2.chat_consumer')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
-
+UNAUTH_REJECT_CODE: int = 4001
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def _after_message_save(self, msg: MessageModel, rid: int, user_pk: str):
@@ -48,14 +48,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if str(d) != self.group_name:
                     await self.channel_layer.group_send(str(d), OutgoingEventWentOnline(user_pk=str(self.user.pk))._asdict())
         else:
-            await self.close(code=4001)
+            logger.info(f"Rejecting unauthenticated user with code {UNAUTH_REJECT_CODE}")
+            await self.close(code=UNAUTH_REJECT_CODE)
 
     async def disconnect(self, close_code):
         # TODO:
         # Set user offline
         # Save user was_online
         # Notify other users that the user went offline
-        if close_code != 4001 and getattr(self, 'user', None) is not None:
+        if close_code != UNAUTH_REJECT_CODE and getattr(self, 'user', None) is not None:
             logger.info(
                 f"User {self.user.pk} disconnected, removing channel {self.channel_name} from group {self.group_name}")
             await self.channel_layer.group_discard(self.group_name, self.channel_name)

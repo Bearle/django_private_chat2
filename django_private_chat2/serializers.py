@@ -8,7 +8,7 @@ def serialize_file_model(m: UploadedFile) -> dict[str | str]:
             'size': m.file.size, 'name': os.path.basename(m.file.name)}
 
 
-def serialize_message_model(m: MessageModel, user_id) ->  dict[str, bool | dict[str, str | bytes] | None | int | str]:
+def serialize_message_model(m: MessageModel, user_id) -> dict[str, bool | dict[str, str | bytes] | None | int | str]:
     sender_pk = m.sender.pk
     is_out = sender_pk == user_id
     # TODO: add forwards
