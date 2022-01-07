@@ -1,133 +1,33 @@
-from channels.generic.websocket import AsyncWebsocketConsumer
-from channels.layers import InMemoryChannelLayer
-from channels.db import database_sync_to_async
-from .models import MessageModel, DialogsModel, UserModel, UploadedFile
-from .serializers import serialize_file_model
-from typing import List, Set, Awaitable, Optional, Dict, Tuple
-from django.contrib.auth.models import AbstractBaseUser
-from django.conf import settings
-from django.core.exceptions import ValidationError
-import logging
 import json
-import enum
-import sys
+from typing import Optional, Dict, Tuple
 
-try:
-    from typing import TypedDict
-except ImportError:
-    TypedDict = dict
+from channels.generic.websocket import AsyncWebsocketConsumer
+from django.contrib.auth.models import AbstractBaseUser
 
-logger = logging.getLogger('django_private_chat2.consumers')
+from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id, get_message_by_id, \
+    save_file_message, save_text_message, mark_message_as_read
+from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
+    OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated,\
+    OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping, OutgoingEventWentOnline, OutgoingEventWentOffline
+
+from .errors import ErrorTypes, ErrorDescription
+from django_private_chat2.models import MessageModel, UploadedFile
+from django_private_chat2.serializers import serialize_file_model
+from django.conf import settings
+import logging
+
+logger = logging.getLogger('django_private_chat2.chat_consumer')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
-
-
-class ErrorTypes(enum.IntEnum):
-    MessageParsingError = 1
-    TextMessageInvalid = 2
-    InvalidMessageReadId = 3
-    InvalidUserPk = 4
-    InvalidRandomId = 5
-    FileMessageInvalid = 6
-    FileDoesNotExist = 7
-
-
-ErrorDescription = Tuple[ErrorTypes, str]
-
-
-# TODO: add tx_id to distinguish errors for different transactions
-
-class MessageTypeTextMessage(TypedDict):
-    text: str
-    user_pk: str
-    random_id: int
-
-
-class MessageTypeMessageRead(TypedDict):
-    user_pk: str
-    message_id: int
-
-
-class MessageTypeFileMessage(TypedDict):
-    file_id: str
-    user_pk: str
-    random_id: int
-
-
-class MessageTypes(enum.IntEnum):
-    WentOnline = 1
-    WentOffline = 2
-    TextMessage = 3
-    FileMessage = 4
-    IsTyping = 5
-    MessageRead = 6
-    ErrorOccured = 7
-    MessageIdCreated = 8
-    NewUnreadCount = 9
-
-
-@database_sync_to_async
-def get_groups_to_add(u: AbstractBaseUser) -> Awaitable[Set[int]]:
-    l = DialogsModel.get_dialogs_for_user(u)
-    return set(list(sum(l, ())))
-
-
-@database_sync_to_async
-def get_user_by_pk(pk: str) -> Awaitable[Optional[AbstractBaseUser]]:
-    return UserModel.objects.filter(pk=pk).first()
-
-
-@database_sync_to_async
-def get_file_by_id(file_id: str) -> Awaitable[Optional[UploadedFile]]:
-    try:
-        f = UploadedFile.objects.filter(id=file_id).first()
-    except ValidationError:
-        f = None
-    return f
-
-
-@database_sync_to_async
-def get_message_by_id(mid: int) -> Awaitable[Optional[Tuple[str, str]]]:
-    msg: Optional[MessageModel] = MessageModel.objects.filter(id=mid).first()
-    if msg:
-        return str(msg.recipient.pk), str(msg.sender.pk)
-    else:
-        return None
-
-
-# @database_sync_to_async
-# def mark_message_as_read(mid: int, sender_pk: str, recipient_pk: str):
-#     return MessageModel.objects.filter(id__lte=mid,sender_id=sender_pk, recipient_id=recipient_pk).update(read=True)
-
-@database_sync_to_async
-def mark_message_as_read(mid: int) -> Awaitable[None]:
-    return MessageModel.objects.filter(id=mid).update(read=True)
-
-
-@database_sync_to_async
-def get_unread_count(sender, recipient) -> Awaitable[int]:
-    return int(MessageModel.get_unread_count_for_dialog_with_user(sender, recipient))
-
-
-@database_sync_to_async
-def save_text_message(text: str, from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
-    return MessageModel.objects.create(text=text, sender=from_, recipient=to)
-
-
-@database_sync_to_async
-def save_file_message(file: UploadedFile, from_: AbstractBaseUser, to: AbstractBaseUser) -> Awaitable[MessageModel]:
-    return MessageModel.objects.create(file=file, sender=from_, recipient=to)
-
+UNAUTH_REJECT_CODE: int = 4001
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def _after_message_save(self, msg: MessageModel, rid: int, user_pk: str):
-        ev = {"type": "message_id_created", "random_id": rid, "db_id": msg.id}
+        ev = OutgoingEventMessageIdCreated(random_id=rid, db_id=msg.id)._asdict()
         logger.info(f"Message with id {msg.id} saved, firing events to {user_pk} & {self.group_name}")
         await self.channel_layer.group_send(user_pk, ev)
         await self.channel_layer.group_send(self.group_name, ev)
         new_unreads = await get_unread_count(self.group_name, user_pk)
-        await self.channel_layer.group_send(user_pk,
-                                            {"type": "new_unread_count", "sender": self.group_name,
-                                             "unread_count": new_unreads})
+        await self.channel_layer.group_send(user_pk, OutgoingEventNewUnreadCount(sender=self.group_name, unread_count=new_unreads)._asdict())
 
     async def connect(self):
         # TODO:
@@ -146,31 +46,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"User {self.user.pk} connected, sending 'user_went_online' to {dialogs} dialog groups")
             for d in dialogs:  # type: int
                 if str(d) != self.group_name:
-                    await self.channel_layer.group_send(str(d),
-                                                        {"type": "user_went_online", "user_pk": str(self.user.pk)})
+                    await self.channel_layer.group_send(str(d), OutgoingEventWentOnline(user_pk=str(self.user.pk))._asdict())
         else:
-            await self.close(code=4001)
+            logger.info(f"Rejecting unauthenticated user with code {UNAUTH_REJECT_CODE}")
+            await self.close(code=UNAUTH_REJECT_CODE)
 
     async def disconnect(self, close_code):
         # TODO:
         # Set user offline
         # Save user was_online
         # Notify other users that the user went offline
-        if close_code != 4001 and getattr(self, 'user', None) is not None:
+        if close_code != UNAUTH_REJECT_CODE and getattr(self, 'user', None) is not None:
             logger.info(
                 f"User {self.user.pk} disconnected, removing channel {self.channel_name} from group {self.group_name}")
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
             dialogs = await get_groups_to_add(self.user)
             logger.info(f"User {self.user.pk} disconnected, sending 'user_went_offline' to {dialogs} dialog groups")
             for d in dialogs:
-                await self.channel_layer.group_send(str(d), {"type": "user_went_offline", "user_pk": str(self.user.pk)})
+                await self.channel_layer.group_send(str(d), OutgoingEventWentOffline(user_pk=str(self.user.pk))._asdict())
 
     async def handle_received_message(self, msg_type: MessageTypes, data: Dict[str, str]) -> Optional[ErrorDescription]:
         logger.info(f"Received message type {msg_type.name} from user {self.group_name} with data {data}")
         if msg_type == MessageTypes.WentOffline \
             or msg_type == MessageTypes.WentOnline \
             or msg_type == MessageTypes.MessageIdCreated \
-            or msg_type == MessageTypes.ErrorOccured:
+            or msg_type == MessageTypes.ErrorOccurred:
             logger.info(f"Ignoring message {msg_type.name}")
         else:
             if msg_type == MessageTypes.IsTyping:
@@ -178,8 +78,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 logger.info(f"User {self.user.pk} is typing, sending 'is_typing' to {dialogs} dialog groups")
                 for d in dialogs:
                     if str(d) != self.group_name:
-                        await self.channel_layer.group_send(str(d), {"type": "is_typing",
-                                                                     "user_pk": str(self.user.pk)})
+                        await self.channel_layer.group_send(str(d), OutgoingEventIsTyping(user_pk=str(self.user.pk))._asdict())
+                return None
+            elif msg_type == MessageTypes.TypingStopped:
+                dialogs = await get_groups_to_add(self.user)
+                logger.info(
+                    f"User {self.user.pk} has stopped typing, sending 'stopped_typing' to {dialogs} dialog groups")
+                for d in dialogs:
+                    if str(d) != self.group_name:
+                        await self.channel_layer.group_send(str(d), OutgoingEventStoppedTyping(user_pk=str(self.user.pk))._asdict())
                 return None
             elif msg_type == MessageTypes.MessageRead:
                 data: MessageTypeMessageRead
@@ -200,10 +107,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     mid = data['message_id']
                     logger.info(
                         f"Validation passed, marking msg from {user_pk} to {self.group_name} with id {mid} as read")
-                    await self.channel_layer.group_send(user_pk, {"type": "message_read",
-                                                                  "message_id": mid,
-                                                                  "sender": user_pk,
-                                                                  "receiver": self.group_name})
+
+                    await self.channel_layer.group_send(user_pk,
+                                                        OutgoingEventMessageRead(message_id=mid, sender=user_pk,
+                                                                                 receiver=self.group_name)._asdict())
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
                     if not recipient:
@@ -218,8 +125,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             await mark_message_as_read(mid)
                             new_unreads = await get_unread_count(user_pk, self.group_name)
                             await self.channel_layer.group_send(self.group_name,
-                                                                {"type": "new_unread_count", "sender": user_pk,
-                                                                 "unread_count": new_unreads})
+                                                                OutgoingEventNewUnreadCount(sender=user_pk,
+                                                                                            unread_count=new_unreads)._asdict())
                             # await mark_message_as_read(mid, sender_pk=user_pk, recipient_pk=self.group_name)
 
                 return None
@@ -262,12 +169,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             await self._after_message_save(msg, rid=rid, user_pk=user_pk)
                             logger.info(f"Sending file message for file {file_id} from {self.user} to {recipient}")
                             # We don't need to send random_id here because we've already saved the file to db
-                            await self.channel_layer.group_send(user_pk, {"type": "new_file_message",
-                                                                          "db_id": msg.id,
-                                                                          "file": serialize_file_model(file),
-                                                                          "sender": self.group_name,
-                                                                          "receiver": user_pk,
-                                                                          "sender_username": self.sender_username})
+
+                            await self.channel_layer.group_send(user_pk,
+                                                                OutgoingEventNewFileMessage(db_id=msg.id,
+                                                                                            file=serialize_file_model(file),
+                                                                                            sender=self.group_name,
+                                                                                            receiver=user_pk,
+                                                                                            sender_username=self.sender_username)._asdict())
 
             elif msg_type == MessageTypes.TextMessage:
                 data: MessageTypeTextMessage
@@ -300,13 +208,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     # considered delivered only when it's saved to database and received a proper id,
                     # which is then broadcast separately both to sender & receiver.
                     logger.info(f"Validation passed, sending text message from {self.group_name} to {user_pk}")
-                    await self.channel_layer.group_send(user_pk, {"type": "new_text_message",
-                                                                  "random_id": rid,
-                                                                  "text": text,
-                                                                  "sender": self.group_name,
-                                                                  "receiver": user_pk,
-                                                                  "sender_username": self.sender_username})
-
+                    await self.channel_layer.group_send(user_pk, OutgoingEventNewTextMessage(random_id=rid,
+                                                                                             text=text,
+                                                                                             sender=self.group_name,
+                                                                                             receiver=user_pk,
+                                                                                             sender_username=self.sender_username)._asdict())
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
                     if not recipient:
@@ -339,76 +245,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
             error = (ErrorTypes.MessageParsingError, f"jsonDecodeError - {e}")
         if error is not None:
             error_data = {
-                'msg_type': MessageTypes.ErrorOccured,
+                'msg_type': MessageTypes.ErrorOccurred,
                 'error': error
             }
             logger.info(f"Will send error {error_data} to {self.group_name}")
             await self.send(text_data=json.dumps(error_data))
 
-    async def new_unread_count(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.NewUnreadCount,
-                'sender': event['sender'],
-                'unread_count': event['unread_count']
-            }))
+    async def new_unread_count(self, event: dict):
+        await self.send(text_data=OutgoingEventNewUnreadCount(**event).to_json())
 
-    async def message_read(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.MessageRead,
-                'message_id': event['message_id'],
-                'sender': event['sender'],
-                'receiver': event['receiver']
-            }))
+    async def message_read(self, event: dict):
+        await self.send(text_data=OutgoingEventMessageRead(**event).to_json())
 
-    async def message_id_created(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.MessageIdCreated,
-                'random_id': event['random_id'],
-                'db_id': event['db_id']
-            }))
+    async def message_id_created(self, event: dict):
+        await self.send(text_data=OutgoingEventMessageIdCreated(**event).to_json())
 
-    async def new_text_message(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.TextMessage,
-                "random_id": event['random_id'],
-                "text": event['text'],
-                "sender": event['sender'],
-                "receiver": event['receiver'],
-                "sender_username": event['sender_username'],
-            }))
+    async def new_text_message(self, event: dict):
+        await self.send(text_data=OutgoingEventNewTextMessage(**event).to_json())
 
-    async def new_file_message(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.FileMessage,
-                "db_id": event['db_id'],
-                "file": event['file'],
-                "sender": event['sender'],
-                "receiver": event['receiver'],
-                "sender_username": event['sender_username'],
-            }))
+    async def new_file_message(self, event: dict):
+        await self.send(text_data=OutgoingEventNewFileMessage(**event).to_json())
 
-    async def is_typing(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.IsTyping,
-                'user_pk': event['user_pk']
-            }))
+    async def is_typing(self, event: dict):
+        await self.send(text_data=OutgoingEventIsTyping(**event).to_json())
+
+    async def stopped_typing(self, event: dict):
+        await self.send(text_data=OutgoingEventStoppedTyping(**event).to_json())
 
     async def user_went_online(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.WentOnline,
-                'user_pk': event['user_pk']
-            }))
+        await self.send(text_data=OutgoingEventWentOnline(**event).to_json())
 
     async def user_went_offline(self, event):
-        await self.send(
-            text_data=json.dumps({
-                'msg_type': MessageTypes.WentOffline,
-                'user_pk': event['user_pk']
-            }))
+        await self.send(text_data=OutgoingEventWentOffline(**event).to_json())

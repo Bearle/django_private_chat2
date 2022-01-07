@@ -38,12 +38,12 @@ INSTALLED_APPS = (
 Add django_private_chat2's URL patterns:
 
 ```python
-from django_private_chat2 import urls as django_private_chat2_urls
+from django.urls import re_path, include
 
 
 urlpatterns = [
     ...
-    url(r'^', include(django_private_chat2_urls)),
+    re_path(r'', include('django_private_chat2.urls', namespace='django_private_chat2')),
     ...
 ]
 ```
@@ -185,6 +185,7 @@ Frontend (example app) & backend
 20. Full test coverage
 21. Migration from v1 guide
 22. Documentation
+23. self-messaging (Saved messages)
 
 Running Tests
 -------------
