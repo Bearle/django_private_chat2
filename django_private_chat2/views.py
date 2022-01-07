@@ -38,7 +38,7 @@ class MessagesModelList(LoginRequiredMixin, ListView):
                 .select_related('sender', 'recipient')
         else:
             qs = MessageModel.objects.filter(Q(recipient=self.request.user) |
-                                             Q(sender=self.request.user)).prefetch_related('sender', 'recipient')
+                                             Q(sender=self.request.user)).prefetch_related('sender', 'recipient', 'file')
 
         return qs.order_by('-created')
 

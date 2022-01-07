@@ -166,9 +166,9 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
                 printfn "Received MessageTypes.NewUnreadCount - %s" message
                 Decode.fromString MessageTypeNewUnreadCount.Decoder message
                 |> Result.map (fun d -> callbacks.newUnreadCount d.sender d.unread_count)
-            | MessageTypes.ErrorOccured ->
-                printfn "Received MessageTypes.ErrorOccured - %s" message
-                let decoded = Decode.fromString MessageTypeErrorOccured.Decoder message
+            | MessageTypes.ErrorOccurred ->
+                printfn "Received MessageTypes.ErrorOccurred - %s" message
+                let decoded = Decode.fromString MessageTypeErrorOccurred.Decoder message
                 match decoded with
                 | Result.Ok err ->
                     let msg = sprintf "Error: %A, message %s" (fst err.error) (snd err.error)
@@ -185,7 +185,7 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
         let data = [
          "error", Encode.tuple2 (Encode.Enum.int) (Encode.string) (ErrorTypes.MessageParsingError, (sprintf "msg_type decoding error - %s" e))
         ]
-        sock.send (msgTypeEncoder MessageTypes.ErrorOccured data)
+        sock.send (msgTypeEncoder MessageTypes.ErrorOccurred data)
         Some (sprintf "Error occured - %s" e)
 
 
