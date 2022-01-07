@@ -3,6 +3,14 @@
 History
 -------
 
+1.0.2 (2022-01-07)
+++++++++++++++++++
+
+* Improve performance for file selection in MessageModelList via 'prefetch_related'
+* Split consumers.py into separate files for better readability & add strong typing
+* Fix typo for ErrorOccured
+* Fix readme
+
 1.0.1 (2021-12-23)
 ++++++++++++++++++
 
