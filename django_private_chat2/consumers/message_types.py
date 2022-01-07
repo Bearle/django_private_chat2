@@ -2,7 +2,8 @@ import enum
 import json
 
 # TODO: add tx_id to distinguish errors for different transactions
-from typing import NamedTuple
+from typing import NamedTuple, Optional, Dict
+
 try:
     from typing import TypedDict
 except ImportError:
@@ -78,7 +79,7 @@ class OutgoingEventNewTextMessage(NamedTuple):
 
 class OutgoingEventNewFileMessage(NamedTuple):
     db_id: int
-    file: dict[str, str]
+    file: Dict[str, str]
     sender: str
     receiver: str
     sender_username: str
