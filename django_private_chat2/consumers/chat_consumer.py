@@ -4,11 +4,14 @@ from typing import Optional, Dict, Tuple
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth.models import AbstractBaseUser
 
-from .db_operations import get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id, get_message_by_id, \
-    save_file_message, save_text_message, mark_message_as_read
-from .message_types import MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage, MessageTypeTextMessage, \
-    OutgoingEventMessageRead, OutgoingEventNewTextMessage, OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated,\
-    OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping, OutgoingEventWentOnline, OutgoingEventWentOffline
+from .db_operations import (get_groups_to_add, get_unread_count, get_user_by_pk, get_file_by_id,
+                            get_message_by_id, save_file_message, save_text_message, mark_message_as_read, )
+
+from .message_types import (MessageTypes, MessageTypeMessageRead, MessageTypeFileMessage,
+                            MessageTypeTextMessage, OutgoingEventMessageRead, OutgoingEventNewTextMessage,
+                            OutgoingEventNewUnreadCount, OutgoingEventMessageIdCreated,
+                            OutgoingEventNewFileMessage, OutgoingEventIsTyping, OutgoingEventStoppedTyping,
+                            OutgoingEventWentOnline, OutgoingEventWentOffline, )
 
 from .errors import ErrorTypes, ErrorDescription
 from django_private_chat2.models import MessageModel, UploadedFile
@@ -20,6 +23,7 @@ logger = logging.getLogger('django_private_chat2.chat_consumer')
 TEXT_MAX_LENGTH = getattr(settings, 'TEXT_MAX_LENGTH', 65535)
 UNAUTH_REJECT_CODE: int = 4001
 
+
 class ChatConsumer(AsyncWebsocketConsumer):
     async def _after_message_save(self, msg: MessageModel, rid: int, user_pk: str):
         ev = OutgoingEventMessageIdCreated(random_id=rid, db_id=msg.id)._asdict()
@@ -27,7 +31,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(user_pk, ev)
         await self.channel_layer.group_send(self.group_name, ev)
         new_unreads = await get_unread_count(self.group_name, user_pk)
-        await self.channel_layer.group_send(user_pk, OutgoingEventNewUnreadCount(sender=self.group_name, unread_count=new_unreads)._asdict())
+        await self.channel_layer.group_send(user_pk,
+                                            OutgoingEventNewUnreadCount(sender=self.group_name,
+                                                                        unread_count=new_unreads)._asdict())
 
     async def connect(self):
         # TODO:
@@ -46,7 +52,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"User {self.user.pk} connected, sending 'user_went_online' to {dialogs} dialog groups")
             for d in dialogs:  # type: int
                 if str(d) != self.group_name:
-                    await self.channel_layer.group_send(str(d), OutgoingEventWentOnline(user_pk=str(self.user.pk))._asdict())
+                    await self.channel_layer.group_send(str(d),
+                                                        OutgoingEventWentOnline(user_pk=str(self.user.pk))._asdict())
         else:
             logger.info(f"Rejecting unauthenticated user with code {UNAUTH_REJECT_CODE}")
             await self.close(code=UNAUTH_REJECT_CODE)
@@ -80,6 +87,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if str(d) != self.group_name:
                         await self.channel_layer.group_send(str(d), OutgoingEventIsTyping(user_pk=str(self.user.pk))._asdict())
                 return None
+
             elif msg_type == MessageTypes.TypingStopped:
                 dialogs = await get_groups_to_add(self.user)
                 logger.info(
@@ -88,20 +96,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if str(d) != self.group_name:
                         await self.channel_layer.group_send(str(d), OutgoingEventStoppedTyping(user_pk=str(self.user.pk))._asdict())
                 return None
+
             elif msg_type == MessageTypes.MessageRead:
                 data: MessageTypeMessageRead
+
                 if 'user_pk' not in data:
                     return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
+
                 elif 'message_id' not in data:
                     return ErrorTypes.MessageParsingError, "'message_id' not present in data"
+
                 elif not isinstance(data['user_pk'], str):
                     return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
+
                 elif not isinstance(data['message_id'], int):
                     return ErrorTypes.InvalidRandomId, "'message_id' should be an int"
+
                 elif data['message_id'] <= 0:
                     return ErrorTypes.InvalidMessageReadId, "'message_id' should be > 0"
+
                 elif data['user_pk'] == self.group_name:
                     return ErrorTypes.InvalidUserPk, "'user_pk' can't be self  (you can't mark self messages as read)"
+
                 else:
                     user_pk = data['user_pk']
                     mid = data['message_id']
@@ -130,24 +146,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             # await mark_message_as_read(mid, sender_pk=user_pk, recipient_pk=self.group_name)
 
                 return None
+
             elif msg_type == MessageTypes.FileMessage:
                 data: MessageTypeFileMessage
+
                 if 'file_id' not in data:
                     return ErrorTypes.MessageParsingError, "'file_id' not present in data"
+
                 elif 'user_pk' not in data:
                     return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
+
                 elif 'random_id' not in data:
                     return ErrorTypes.MessageParsingError, "'random_id' not present in data"
+
                 elif data['file_id'] == '':
                     return ErrorTypes.FileMessageInvalid, "'file_id' should not be blank"
+
                 elif not isinstance(data['file_id'], str):
                     return ErrorTypes.FileMessageInvalid, "'file_id' should be a string"
+
                 elif not isinstance(data['user_pk'], str):
                     return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
+
                 elif not isinstance(data['random_id'], int):
                     return ErrorTypes.InvalidRandomId, "'random_id' should be an int"
+
                 elif data['random_id'] > 0:
                     return ErrorTypes.InvalidRandomId, "'random_id' should be negative"
+
                 else:
                     file_id = data['file_id']
                     user_pk = data['user_pk']
@@ -179,24 +205,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             elif msg_type == MessageTypes.TextMessage:
                 data: MessageTypeTextMessage
+
                 if 'text' not in data:
                     return ErrorTypes.MessageParsingError, "'text' not present in data"
+
                 elif 'user_pk' not in data:
                     return ErrorTypes.MessageParsingError, "'user_pk' not present in data"
+
                 elif 'random_id' not in data:
                     return ErrorTypes.MessageParsingError, "'random_id' not present in data"
+
                 elif data['text'] == '':
                     return ErrorTypes.TextMessageInvalid, "'text' should not be blank"
+
                 elif len(data['text']) > TEXT_MAX_LENGTH:
                     return ErrorTypes.TextMessageInvalid, "'text' is too long"
+
                 elif not isinstance(data['text'], str):
                     return ErrorTypes.TextMessageInvalid, "'text' should be a string"
+
                 elif not isinstance(data['user_pk'], str):
                     return ErrorTypes.InvalidUserPk, "'user_pk' should be a string"
+
                 elif not isinstance(data['random_id'], int):
                     return ErrorTypes.InvalidRandomId, "'random_id' should be an int"
+
                 elif data['random_id'] > 0:
                     return ErrorTypes.InvalidRandomId, "'random_id' should be negative"
+
                 else:
                     text = data['text']
                     user_pk = data['user_pk']
@@ -215,6 +251,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                                                                              sender_username=self.sender_username)._asdict())
                     recipient: Optional[AbstractBaseUser] = await get_user_by_pk(user_pk)
                     logger.info(f"DB check if user {user_pk} exists resulted in {recipient}")
+
                     if not recipient:
                         return ErrorTypes.InvalidUserPk, f"User with pk {user_pk} does not exist"
                     else:

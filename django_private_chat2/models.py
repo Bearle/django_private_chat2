@@ -4,12 +4,13 @@ from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import localtime
-from model_utils.models import TimeStampedModel, SoftDeletableModel, SoftDeletableManager
 from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth import get_user_model
 from typing import Optional, Any
 from django.db.models import Q
 import uuid
+
+from model_utils.models import TimeStampedModel, SoftDeletableModel  # , SoftDeletableManager
 
 UserModel: AbstractBaseUser = get_user_model()
 
