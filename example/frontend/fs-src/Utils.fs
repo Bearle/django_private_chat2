@@ -40,4 +40,4 @@ module Utils =
         let i = JS.Math.floor(JS.Math.log(float size) / JS.Math.log(1024.))
         let r = (float size / JS.Math.pow(1024.,i))
         let suffix = [|"B";"kB"; "MB";"GB";"TB"|].[int i]
-        sprintf "%.2f %s" r suffix
+        $"%.2f{r} %s{suffix}"
