@@ -46,9 +46,6 @@ module Utils =
         let suffix = [|"B";"kB"; "MB";"GB";"TB"|].[int i]
         $"%.2f{r} %s{suffix}"
 
-    [<Emit("decodeURIComponent($0)")>]
-    let decodeURIComponent (encodedURIComponent:string) : string = nativeOnly
-
     let getCookie() =
         let name = "csrftoken"
         let mutable cookieValue = None
@@ -61,7 +58,7 @@ module Utils =
                 if not Break then
                     let cookie = c.Trim()
                     if cookie.Substring(0, name.Length + 1) = (name + "=") then
-                        cookieValue <- Some (decodeURIComponent(cookie.Substring(name.Length + 1)))
+                        cookieValue <- Some (JS.decodeURIComponent(cookie.Substring(name.Length + 1)))
                         Break <- true
 
 
