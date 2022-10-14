@@ -3,18 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "devDependencies": {
-    "@svgr/webpack": "^6.4.0",
-    "css-loader": "^6.7.1",
-    "esbuild-loader": "^2.20.0",
-    "file-loader": "^6.2.0",
+    "@vitejs/plugin-legacy": "^2.2.0",
+    "@vitejs/plugin-react": "^2.1.0",
+    "@babel/core": "^7.19.3",
+    "terser": "^5.15.1",
     "identicon.js": "^2.3.3",
     "lorem-ipsum": "^2.0.8",
-    "mini-css-extract-plugin": "^2.6.1",
-    "style-loader": "^3.3.1",
-    "url-loader": "^4.1.1",
-    "webpack": "^5.74.0",
-    "webpack-cli": "^4.10.0",
-    "webpack-dev-server": "^4.11.1"
+    "vite": "^3.1.8",
+    "vite-plugin-svgr": "^2.2.2"
   },
   "dependencies": {
     "lodash.throttle": "^4.1.1",
@@ -29,8 +25,8 @@
   "scripts": {
     "postinstall": "dotnet tool restore",
     "start:fable": "dotnet fable watch .",
-    "start": "dotnet fable watch . --run webpack serve --mode development --config webpack.config.js --progress --profile",
-    "build": "dotnet fable . --run webpack --mode production",
+    "start": "dotnet fable watch . -o dist -e .jsx --run vite serve",
+    "build": "dotnet fable . -o dist -e .jsx --run vite build",
     "build:jsonly": "webpack --mode production --watch"
   },
   "browserslist": {
