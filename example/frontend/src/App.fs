@@ -5,10 +5,14 @@ open Browser.Types
 open Fable.Core
 open Fable.React
 open App.AppTypes
+open Feliz
 
 
 [<ImportDefault("reconnecting-websocket")>]
 let ReconnectingWebsocket(url: string): Browser.Types.WebSocket = nativeOnly
+
+[<ImportMember("react-icons/fa")>]
+let FaPaperclip: obj = jsNative
 
 // [<ImportMember("react-toastify")>]
 // let toast(text: string, ?options: obj): int = jsNative
@@ -56,45 +60,49 @@ module private Elmish =
         | UnreadCountChanged of id: string * count: int
         | SetMessageIdRead of id: string
         | PerformSendingMessage
+        | PerformFileUpload of Browser.Types.FileList
 
+    let update (msg: Msg) (state: EState) =
+        init()
 
 
 module private Components =
     open Elmish
-    open Feliz
     open Browser.Types
 
 
     [<JSX.Component>]
-    let Button (ttype: string) (color: string) onClick =
+    let Button (ttype: string) (color: string) (iconComponent: obj) (size: int) (disabled: bool) onClick =
+        let icon = {|
+            ``component`` = iconComponent
+            size = size
+        |}
         JSX.jsx
             $"""
         <Button
-            type='transparent'
-            color='black'
+            type="{ttype}"
+            color="{color}"
             onClick={onClick}
-            icon={{
-                component: <FaPaperclip/>,
-                size: 24
-            }}
+            icon={icon}
+            disabled={disabled}
         />
         """
 
     [<JSX.Component>]
-    let InputField (model:EState) (dispatch: Msg -> unit) =
+    let MessageInputField (model:EState) (dispatch: Msg -> unit) =
         let inputRef = React.useRef<HTMLInputElement option> (None)
+
+        // import {{ FaPaperclip}} from "react-icons/fa"
 
         JSX.jsx
             $"""
         import {{ Input, Button }} from "react-chat-elements"
-        import {{ FaPaperclip}} from "react-icons/fa"
 
         <Input
             placeholder="Type here to send a message."
             defaultValue=""
             ref={inputRef}
             multiline={true}
-            // buttonsFloat='left'
             onKeyPress={fun (e: KeyboardEvent) ->
               if e.charCode <> 13 then
                 JS.console.log("key pressed")
@@ -110,12 +118,7 @@ module private Components =
               else
                 false
             }
-            leftButtons={{
-                <Button
-                    type='transparent'
-                    color='black'
-                />
-            }}
+            leftButtons={Button "transparent" "black" FaPaperclip 24 false (fun _ -> ())}
             rightButtons={{
                 <Button
                     text='Send'
@@ -128,20 +131,42 @@ module private Components =
 
 [<JSX.Component>]
 let App () =
-//     let model, dispatch = React.useElmish (init, update, arg = 2)
+    let model, dispatch = React.useElmish (Elmish.init, Elmish.update)
 
 //         import 'react-chat-elements/dist/main.css';
 //         import 'react-toastify/dist/ReactToastify.css';
 //         import './App.css';
+    let fileInputRef = React.useRef<HTMLInputElement option> (None)
     JSX.jsx
         $"""
     import {{ ToastContainer }} from "react-toastify"
+    import {{ MessageList }} from "react-chat-elements"
 
     <div className="container">
         <div className="chat-list">
         </div>
         <div className="right-panel">
             <ToastContainer/>
+
+            <MessageList
+                className='message-list'
+                lockable={true}
+                downButtonBadge={model.selectedDialog
+                                    |> Option.map (fun d -> d.unread)
+                                    |> Option.filter (fun x -> x > 0)
+                                    |> Option.map string
+                                    |> Option.defaultValue ""}
+                dataSource={Logic.filterMessagesForDialog model.selectedDialog model.messageList}/>
+
+            <input id='selectFile'
+                hidden
+                type="file"
+                onChange={fun (e: Browser.Types.Event) ->
+                    let files = (e.target :?> HTMLInputElement).files
+                    dispatch (Elmish.Msg.PerformFileUpload files)}
+                ref={fileInputRef}
+                />
+            {Components.MessageInputField model dispatch}
         </div>
     </div>
     """
