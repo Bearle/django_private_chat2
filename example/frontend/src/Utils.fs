@@ -45,3 +45,24 @@ module Utils =
         let r = (float size / JS.Math.pow(1024.,i))
         let suffix = [|"B";"kB"; "MB";"GB";"TB"|].[int i]
         $"%.2f{r} %s{suffix}"
+
+    [<Emit("decodeURIComponent($0)")>]
+    let decodeURIComponent (encodedURIComponent:string) : string = nativeOnly
+
+    let getCookie() =
+        let name = "csrftoken"
+        let mutable cookieValue = None
+
+        let mutable Break = false
+        if not (String.IsNullOrWhiteSpace Browser.Dom.document.cookie) && Browser.Dom.document.cookie <> "" then
+
+            let cookies = Browser.Dom.document.cookie.Split(';')
+            for c in cookies do
+                if not Break then
+                    let cookie = c.Trim()
+                    if cookie.Substring(0, name.Length + 1) = (name + "=") then
+                        cookieValue <- Some (decodeURIComponent(cookie.Substring(name.Length + 1)))
+                        Break <- true
+
+
+        cookieValue
