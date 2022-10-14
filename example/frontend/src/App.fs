@@ -7,6 +7,9 @@ open Fable.React
 open App.AppTypes
 open Feliz
 
+JsInterop.importSideEffects "react-chat-elements/dist/main.css"
+JsInterop.importSideEffects "react-toastify/dist/ReactToastify.css"
+JsInterop.importSideEffects "./App.css"
 
 [<ImportDefault("reconnecting-websocket")>]
 let ReconnectingWebsocket(url: string): Browser.Types.WebSocket = nativeOnly
