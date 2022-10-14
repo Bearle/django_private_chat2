@@ -3,8 +3,12 @@ module Utils =
     open System
     open Fable.Core.JsInterop
     open Fable.Core
+    open Feliz
 
     // https://stackoverflow.com/a/22429679
+
+    let inline toJsx (el: ReactElement) : JSX.Element = unbox el
+    let inline toReact (el: JSX.Element) : ReactElement = unbox el
 
     [<Emit("hval ^= str.charCodeAt(i)")>]
     let assignBitShiftChartCode() = jsNative

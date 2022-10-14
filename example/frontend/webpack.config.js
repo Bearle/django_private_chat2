@@ -1,7 +1,6 @@
 const path = require("path");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const webpack = require("webpack");
-const OptimizeCssAssetsPlugin = require("optimize-css-assets-webpack-plugin");
 const { ESBuildPlugin, ESBuildMinifyPlugin } = require('esbuild-loader')
 
 module.exports = function(_env, argv) {
@@ -10,7 +9,7 @@ module.exports = function(_env, argv) {
 
   return {
     devtool: isDevelopment && "cheap-module-source-map",
-    entry: "./src/index.js",
+    entry: "./src/Index.fs.js",
     output: {
       path: path.resolve(__dirname, "../static"),
       filename: "js/[name].js",
@@ -77,7 +76,6 @@ module.exports = function(_env, argv) {
       minimize: isProduction,
       minimizer: [
         new ESBuildMinifyPlugin({target: 'es2015', minify:isProduction}),
-        new OptimizeCssAssetsPlugin()
       ],
       // splitChunks: {
       //   chunks: "all",
@@ -106,7 +104,7 @@ module.exports = function(_env, argv) {
       compress: true,
       historyApiFallback: true,
       open: false,
-      overlay: true
+      static: path.resolve(__dirname, 'src'),
     }
   };
 };

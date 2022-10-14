@@ -3,11 +3,15 @@
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Utils.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="App.fs" />
+    <Compile Include="src/Utils.fs" />
+    <Compile Include="src/Types.fs" />
+    <Compile Include="src/Logic.fs" />
+    <Compile Include="src/App.fs" />
+    <Compile Include="src/Index.fs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Fable.React.UseElmish" Version="1.0.0-beta-001" />
+    <PackageReference Include="Feliz" Version="2.0.0-prerelease-003" />
     <PackageReference Include="Fable.Browser.Url" Version="1.0.3" />
     <PackageReference Include="Fable.Browser.WebSocket" Version="1.2.0" />
     <PackageReference Include="Fable.Core" Version="4.0.0-theta-006" />
