@@ -72,7 +72,7 @@ module private Elmish =
         | MessageIdChanged of old_int: string * new_id: string
         | UnreadCountChanged of id: string * count: int
         | SetMessageIdRead of id: string
-        | PerformSendingMessage
+        | PerformSendingMessage of text: string
         | PerformFileUpload of Browser.Types.FileList
         | SetShowNewChatPopup of show: bool
         | SelectDialog of dialog: ChatItem
@@ -80,6 +80,7 @@ module private Elmish =
         | DialogFetchingFailed of error: string
         | FileUploadError of error: string
         | FileUploadSuccess of uploadRes: Result<MessageModelFile,string>
+        | SetMsgIdAsRead of msg_id: int64
 
     let update (msg: Msg) (state: State) =
         match msg with
@@ -101,6 +102,29 @@ module private Elmish =
             {state with UsersDataLoading = true}, cmd
         | SetShowNewChatPopup show ->
             {state with ShowNewChatPopup = show}, Cmd.none
+        | PerformSendingMessage text ->
+            let msgBox =
+                state.selectedDialog
+                |> Option.map (fun x -> x.id)
+                |> Option.bind (fun pk -> Logic.sendOutgoingTextMessage state.socket text pk state.selfInfo)
+
+            printfn $"sendOutgoingTextMessage result:{msgBox}"
+            match msgBox with
+                | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
+                | None -> state, Cmd.none
+
+        | SetMsgIdAsRead msg_id ->
+            printfn $"Setting {msg_id} as read"
+            let newMsgList =
+                state.messageList
+                |> Array.map (fun msg ->
+                    if msg.data.message_id = msg_id then
+                        {msg with status = MessageBoxStatus.Read}
+                    else
+                        msg
+                    )
+            {state with messageList = newMsgList}, Cmd.none
+
         | PerformFileUpload files ->
             //TODO: set 'file uploading' state to true, show some indication of file upload in progress
             printfn "File upload starting..."
@@ -198,7 +222,11 @@ module private Components =
                 true
               elif e.charCode = 13 then
                 if model.socket.readyState = WebSocketState.OPEN then
-                    dispatch Msg.PerformSendingMessage
+                    inputRef.current |> Option.iter (fun x ->
+                        dispatch (Msg.PerformSendingMessage x.value)
+                        x.value <- ""
+                    )
+
                     e.preventDefault()
                 false
               else
@@ -216,7 +244,12 @@ module private Components =
                 <Button
                     text='Send'
                     disabled={model.socket.readyState <> WebSocketState.OPEN}
-                    onClick={fun () -> dispatch Msg.PerformSendingMessage}/>
+                    onClick={fun () ->
+                        inputRef.current |> Option.iter (fun x ->
+                            dispatch (Msg.PerformSendingMessage x.value)
+                            x.value <- ""
+                        )
+                        }/>
             }}/>
 
         """
