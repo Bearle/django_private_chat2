@@ -458,11 +458,11 @@ module private Components =
                     |}
         let id = model.selectedDialog |> Option.map (fun d -> d.id)
         JSX.jsx $"""
-            import {{ Navbar, ChatItem }} from "react-chat-elements"
+            import {{ Navbar, ChatItem as ChatItemR }} from "react-chat-elements"
             import {{ FaEdit }} from "react-icons/fa"
             <Navbar
             left={{
-                <ChatItem
+                <ChatItemR
                 id={id}
                 avatar={model.selectedDialog |> Option.map (fun d -> d.avatar)}
                 avatarFlexible={model.selectedDialog |> Option.map (fun d -> d.avatarFlexible)}
