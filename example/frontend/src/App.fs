@@ -78,6 +78,8 @@ module private Elmish =
         | SelectDialog of dialog: ChatItem
         | LoadUsersData
         | DialogFetchingFailed of error: string
+        | FileUploadError of error: string
+        | FileUploadSuccess of uploadRes: Result<MessageModelFile,string>
 
     let update (msg: Msg) (state: State) =
         match msg with
@@ -99,6 +101,33 @@ module private Elmish =
             {state with UsersDataLoading = true}, cmd
         | SetShowNewChatPopup show ->
             {state with ShowNewChatPopup = show}, Cmd.none
+        | PerformFileUpload files ->
+            //TODO: set 'file uploading' state to true, show some indication of file upload in progress
+            printfn "File upload starting..."
+            let cookie = App.Utils.getCookie() |> Option.defaultValue ""
+            let cmd = Cmd.OfPromise.either
+                            (Logic.uploadFile files)
+                            cookie
+                            Msg.FileUploadSuccess
+                            (fun x -> Msg.FileUploadError (x.ToString()))
+            state, cmd
+        | FileUploadSuccess fileResult ->
+            match fileResult with
+            | Ok file ->
+                printfn $"Uploaded file : {file}"
+                let user_pk = state.selectedDialog |> Option.map (fun x -> x.id)
+
+                let msgBox = user_pk
+                             |> Option.bind (fun pk -> Logic.sendOutgoingFileMessage state.socket pk file state.selfInfo)
+                printfn $"sendOutgoingFileMessage result:{msgBox}"
+                match msgBox with
+                | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
+                | None -> state, Cmd.none
+
+            | Error s -> state, Cmd.ofMsg (Msg.FileUploadError s)
+        | FileUploadError err ->
+            printfn $"File upload error - {err}"
+            state, Cmd.none
         | other -> printfn $"Received unsupported msg {other}, ignoring";state,Cmd.none
         // init()
 
@@ -115,18 +144,6 @@ module private Funcs =
         | WebSocketState.CLOSED -> "Disconnected"
         | _ -> "Unknown"
 
-
-    //taken from https://github.com/you-dont-need/You-Dont-Need-Lodash-Underscore#_throttle
-    let throttle (func: unit) (timeFrame: float) =
-        let mutable lastTime: float = 0
-        JS.spreadFunc (fun args ->
-            let now = JS.Constructors.Date.now()
-            if (now - lastTime) >= timeFrame then
-                printfn $"lastTime: {lastTime}"
-                JsInterop.emitJsExpr (func, args) "$0 (...$1)"
-                lastTime <- now
-            ()
-        )
 
     let isTyping (socket: WebSocket) :unit->unit=
         lodash_throttle((fun () -> Logic.sendIsTypingMessage socket),TYPING_TIMEOUT)
