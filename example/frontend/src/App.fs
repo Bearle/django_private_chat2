@@ -27,7 +27,7 @@ let RWebSocket : ReconnectingWebsocket = jsNative
 // let toast(text: string, ?options: obj): int = jsNative
 module private Elmish =
     open Elmish
-    type EState = {
+    type State = {
         SocketConnectionState: int
         ShowNewChatPopup: bool
         UsersDataLoading: bool
@@ -72,9 +72,31 @@ module private Elmish =
         | PerformFileUpload of Browser.Types.FileList
         | SetShowNewChatPopup of show: bool
         | SelectDialog of dialog: ChatItem
+        | LoadUsersData
+        | DialogFetchingFailed of error: string
 
-    let update (msg: Msg) (state: EState) =
-        init()
+    let update (msg: Msg) (state: State) =
+        match msg with
+        | DialogFetchingFailed err ->
+            printfn $"Failed to fetch dialogs -  {err}"
+            {state with UsersDataLoading = false}, Cmd.none
+        | DialogsFetched usersResults ->
+            match usersResults with
+            | Ok users ->
+                printfn $"Fetched users {users}"
+                {state with AvailableUsers=users},Cmd.none
+            | Error s -> state, Cmd.ofMsg (DialogFetchingFailed s)
+        | LoadUsersData ->
+            let cmd = Cmd.OfPromise.either
+                          Logic.fetchUsersList // Promise
+                          state.dialogList // Argument
+                          Msg.DialogsFetched // Map Success
+                          (fun x -> DialogFetchingFailed (x.ToString())) // Map Exception
+            {state with UsersDataLoading = true}, cmd
+        | SetShowNewChatPopup show ->
+            {state with ShowNewChatPopup = show}, Cmd.none
+        | other -> printfn $"Received unsupported msg {other}, ignoring";state,Cmd.none
+        // init()
 
 
 module private Components =
@@ -100,7 +122,7 @@ module private Components =
         """
 
     [<JSX.Component>]
-    let MessageInputField (model:EState) (dispatch: Msg -> unit) (triggerFileRefClick: unit -> unit) =
+    let MessageInputField (model:State) (dispatch: Msg -> unit) (triggerFileRefClick: unit -> unit) =
         let inputRef = React.useInputRef()
         let leftBtnIcon = {|
                         ``component`` = JSX.jsx "<FaPaperclip/>"
@@ -149,13 +171,61 @@ module private Components =
         """
 
     [<JSX.Component>]
-    let PopUpChatList (model: EState) (dispatch: Msg -> unit) =
+    let PopUpChatList (model: State) (dispatch: Msg -> unit) =
         JSX.jsx $"""
+            import {{ ChatList }} from "react-chat-elements"
             <ChatList onClick={fun (item, i, e) ->
                 dispatch (Msg.SetShowNewChatPopup false)
                 dispatch (Msg.SelectDialog item)
             }
             dataSource={model.AvailableUsers}/>
+        """
+
+    [<JSX.Component>]
+    let NavbarChatList (model: State) (dispatch: Msg -> unit) =
+        let rightBtnIcon = {|
+                        ``component`` = JSX.jsx "<FaEdit/>"
+                        size = 24
+                    |}
+        let id = model.selectedDialog |> Option.map (fun d -> d.id)
+        JSX.jsx $"""
+            import {{ Navbar, ChatItem }} from "react-chat-elements"
+            import {{ FaEdit }} from "react-icons/fa"
+            <Navbar
+            left={{
+                <ChatItem
+                id={id}
+                avatar={model.selectedDialog |> Option.map (fun d -> d.avatar)}
+                avatarFlexible={model.selectedDialog |> Option.map (fun d -> d.avatarFlexible)}
+                statusColorType={model.selectedDialog |> Option.map (fun d -> d.statusColorType)}
+                alt={model.selectedDialog |> Option.map (fun d -> d.alt)}
+                title={model.selectedDialog |> Option.map (fun d -> d.title)}
+                date={{null}}
+                unread={0}
+                statusColor={model.selectedDialog
+                             |> Option.filter (fun x -> model.onlinePKs |> Array.contains x.id)
+                             |> Option.map (fun _ -> "lightgreen")
+                             |> Option.defaultValue ""
+                             }
+                subtitle={model.selectedDialog
+                             |> Option.filter (fun x -> model.typingPKs |> Array.contains x.id)
+                             |> Option.map (fun _ -> "typing...")
+                             |> Option.defaultValue ""
+                          }
+                />
+            }}
+            right={{
+                <Button
+                    type='transparent'
+                    color='black'
+                    onClick={fun _ ->
+                        dispatch (Msg.LoadUsersData)
+                        dispatch (Msg.SetShowNewChatPopup true)
+                    }
+                    icon={rightBtnIcon}
+                />
+            }}
+            />
         """
 
 [<JSX.Component>]
@@ -170,7 +240,7 @@ let App () =
     JSX.jsx
         $"""
     import {{ ToastContainer }} from "react-toastify"
-    import {{ MessageList, Popup, ChatList }} from "react-chat-elements"
+    import {{ MessageList, Popup }} from "react-chat-elements"
     import {{ FaWindowClose }} from "react-icons/fa"
 
     <div className="container">
@@ -207,6 +277,7 @@ let App () =
                             Components.PopUpChatList model dispatch
                     }
             />
+            {Components.NavbarChatList model dispatch}
             <MessageList
                 className='message-list'
                 lockable={true}
