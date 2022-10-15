@@ -19,6 +19,10 @@ type ReconnectingWebsocket =
     abstract Create: string -> Browser.Types.WebSocket
 
 
+[<ImportDefault("lodash.throttle")>]
+let lodash_throttle(fn: (unit -> unit) * float) = jsNative
+
+
 [<ImportDefault("reconnecting-websocket")>]
 let RWebSocket : ReconnectingWebsocket = jsNative
 
@@ -101,6 +105,8 @@ module private Elmish =
 module private Funcs =
     open Elmish
     open Browser.Types
+    let TYPING_TIMEOUT: float = 5000
+
     let getConnectionStateText (socketState: WebSocketState) =
         match socketState with
         | WebSocketState.CONNECTING -> "Connecting..."
@@ -108,6 +114,23 @@ module private Funcs =
         | WebSocketState.CLOSING -> "Disconnecting..."
         | WebSocketState.CLOSED -> "Disconnected"
         | _ -> "Unknown"
+
+
+    //taken from https://github.com/you-dont-need/You-Dont-Need-Lodash-Underscore#_throttle
+    let throttle (func: unit) (timeFrame: float) =
+        let mutable lastTime: float = 0
+        JS.spreadFunc (fun args ->
+            let now = JS.Constructors.Date.now()
+            if (now - lastTime) >= timeFrame then
+                printfn $"lastTime: {lastTime}"
+                JsInterop.emitJsExpr (func, args) "$0 (...$1)"
+                lastTime <- now
+            ()
+        )
+
+    let isTyping (socket: WebSocket) :unit->unit=
+        lodash_throttle((fun () -> Logic.sendIsTypingMessage socket),TYPING_TIMEOUT)
+
 
 module private Components =
     open Elmish
@@ -134,6 +157,7 @@ module private Components =
     [<JSX.Component>]
     let MessageInputField (model:State) (dispatch: Msg -> unit) (triggerFileRefClick: unit -> unit) =
         let inputRef = React.useInputRef()
+        let isTyping = Funcs.isTyping(model.socket)
         let leftBtnIcon = {|
                         ``component`` = JSX.jsx "<FaPaperclip/>"
                         size = 24
@@ -151,8 +175,8 @@ module private Components =
             onKeyPress={fun (e: KeyboardEvent) ->
               if e.charCode <> 13 then
                 JS.console.log("key pressed")
-                // TODO:
-                // this.isTyping()
+                isTyping()
+
               if e.shiftKey && e.charCode = 13 then
                 true
               elif e.charCode = 13 then

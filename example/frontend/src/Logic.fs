@@ -214,6 +214,7 @@ let sendOutgoingFileMessage (sock: WebSocket) (user_pk: string) (file_data: Mess
     self_info |> Option.map (fun x -> createMessageBoxFromOutgoingMessage file_data.name user_pk x.pk x.username randomId (Some file_data))
 
 let sendIsTypingMessage (sock: WebSocket) =
+    printfn $"Sending 'isTyping'"
     sock.send (msgTypeEncoder MessageTypes.IsTyping [])
 
 let sendMessageReadMessage (sock: WebSocket) (user_pk: string) (message_id: int64) =
