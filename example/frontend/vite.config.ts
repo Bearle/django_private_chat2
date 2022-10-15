@@ -12,6 +12,9 @@ export default defineConfig(configEnv => ({
             targets: ['> 0.01%']
         })
     ],
+    server: {
+        host: "127.0.0.1"
+    }
     // build: {
     //     outDir: './build',
     // }

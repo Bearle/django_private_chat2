@@ -98,6 +98,16 @@ module private Elmish =
         | other -> printfn $"Received unsupported msg {other}, ignoring";state,Cmd.none
         // init()
 
+module private Funcs =
+    open Elmish
+    open Browser.Types
+    let getConnectionStateText (socketState: Browser.Types.WebSocketState) =
+        match socketState with
+        | WebSocketState.CONNECTING -> "Connecting..."
+        | WebSocketState.OPEN -> "Connected"
+        | WebSocketState.CLOSING -> "Disconnecting..."
+        | WebSocketState.CLOSED -> "Disconnected"
+        | _ -> "Unknown"
 
 module private Components =
     open Elmish
@@ -171,7 +181,81 @@ module private Components =
         """
 
     [<JSX.Component>]
-    let PopUpChatList (model: State) (dispatch: Msg -> unit) =
+    let SideBarChatList (model: State) (dispatch: Msg -> unit) =
+        let searchInputRef = React.useInputRef()
+        let searchIcon = {|
+                        ``component`` = JSX.jsx "<FaSearch/>"
+                        size = 18
+                        |}
+        let clearIcon = {|
+                        ``component`` = JSX.jsx "<FaTimesCircle/>"
+                        size = 18
+                        |}
+        JSX.jsx $"""
+           import {{ SideBar, Input, Button }} from "react-chat-elements"
+           import {{ FaSearch, FaTimesCircle }} from "react-icons/fa"
+           <SideBar
+                type='light'
+                top={{
+                    <span className='chat-list'>
+                        <Input
+                            placeholder="Search..."
+                            referance={searchInputRef}
+                            onKeyPress={fun (e: KeyboardEvent) ->
+                              if e.charCode <> 13 then
+                                // TODO:
+                                // this.localSearch();
+                                false
+                              elif e.charCode = 13 then
+                                // TODO:
+                                // this.localSearch();
+                                printfn $"Search invoke with '{searchInputRef.current |> Option.map (fun x -> x.value)}'"
+                                e.preventDefault()
+                                false
+                              else
+                                false
+                            }
+                            rightButtons={{
+                            <div>
+                                <Button
+                                    type="transparent"
+                                    color="black"
+                                    onClick={fun _ ->
+                                        // TODO:
+                                        // this.localSearch();
+                                        printfn $"Search invoke with '{searchInputRef.current |> Option.map (fun x -> x.value)}'"
+                                    }
+                                    icon={searchIcon}
+                                />
+                                <Button
+                                    type="transparent"
+                                    color="black"
+                                    onClick={fun _ -> searchInputRef.current |> Option.iter (fun x -> x.value <- "")}
+                                    icon={clearIcon}
+                                />
+                            </div>
+                            }}
+                        />
+                        <ChatList
+                            onClick={fun (item, i, e) -> dispatch (Msg.SelectDialog item)}
+                            dataSource={model.filteredDialogList |> Array.sortByDescending (fun x -> x.date)}
+                        />
+                    </span>
+                }}
+
+                bottom={{
+                    <Button
+                    type="transparent"
+                    color="black"
+                    disabled={true}
+                    text={$"Connection state: {Funcs.getConnectionStateText model.socket.readyState}"}
+                    />
+                }}
+           />
+        """
+
+    [<JSX.Component>]
+    let PopUpRightPanel (model: State) (dispatch: Msg -> unit) =
         JSX.jsx $"""
             import {{ ChatList }} from "react-chat-elements"
             <ChatList onClick={fun (item, i, e) ->
@@ -182,7 +266,7 @@ module private Components =
         """
 
     [<JSX.Component>]
-    let NavbarChatList (model: State) (dispatch: Msg -> unit) =
+    let NavbarRightPanel (model: State) (dispatch: Msg -> unit) =
         let rightBtnIcon = {|
                         ``component`` = JSX.jsx "<FaEdit/>"
                         size = 24
@@ -245,6 +329,7 @@ let App () =
 
     <div className="container">
         <div className="chat-list">
+            {Components.SideBarChatList model dispatch}
         </div>
         <div className="right-panel">
             <ToastContainer/>
@@ -274,10 +359,10 @@ let App () =
                         if model.AvailableUsers.Length = 0 then
                             JSX.jsx "<div><p>No users available</p></div>"
                         else
-                            Components.PopUpChatList model dispatch
+                            Components.PopUpRightPanel model dispatch
                     }
             />
-            {Components.NavbarChatList model dispatch}
+            {Components.NavbarRightPanel model dispatch}
             <MessageList
                 className='message-list'
                 lockable={true}
