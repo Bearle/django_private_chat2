@@ -117,6 +117,48 @@ module private Elmish =
             match msgBox with
                 | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
                 | None -> state, Cmd.none
+        | AddMessage msg ->
+            printfn "Calling addMessage for"
+            JS.console.log msg
+            let mutable actualNewMsg = msg
+            if not msg.data.out && msg.data.message_id > 0 && state.selectedDialog.IsSome then
+                if state.selectedDialog.Value.id = msg.data.dialog_id then
+                    Logic.sendMessageReadMessage state.socket msg.data.dialog_id msg.data.message_id
+                    actualNewMsg <- {msg with status = MessageBoxStatus.Read}
+
+            let newMessageList = state.messageList
+                                        |> Array.map (fun x ->
+                                            if x.data.message_id = msg.data.message_id then
+                                                actualNewMsg
+                                            else x)
+
+            let mutable doesntNeedLastMessageSet = false
+
+            let mutable newDialogList = state.dialogList
+
+            if not msg.data.out then
+                // let hasDialogAlready = dialogs.some((e) => e.id === msg.data.dialog_id);
+                let hasDialogAlready = state.dialogList
+                                       |> Array.exists (fun e -> e.id = msg.data.dialog_id)
+                if not hasDialogAlready then
+                    let d = Logic.createNewDialogModelFromIncomingMessageBox(msg)
+                    newDialogList <- state.dialogList |> Array.append [| d |]
+                    doesntNeedLastMessageSet <- true
+
+            if not doesntNeedLastMessageSet then
+                newDialogList <-
+                    newDialogList
+                    |> Array.map (fun el ->
+                        if el.id = msg.data.dialog_id then
+                            printfn $"Setting dialog {msg.data.dialog_id} last message"
+                            {el with subtitle = Logic.getSubtitleTextFromMessageBox (Some msg)}
+                        else
+                            el
+                        )
+
+            {state with messageList = newMessageList
+                        dialogList = newDialogList
+                        filteredDialogList = newDialogList }, Cmd.none
 
         | SelectDialog dialog ->
             printfn $"Selecting dialog {dialog.id}"
