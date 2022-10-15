@@ -11,11 +11,17 @@ JsInterop.importSideEffects "react-chat-elements/dist/main.css"
 JsInterop.importSideEffects "react-toastify/dist/ReactToastify.css"
 JsInterop.importSideEffects "./App.css"
 
-[<ImportDefault("reconnecting-websocket")>]
-let ReconnectingWebsocket(url: string): Browser.Types.WebSocket = nativeOnly
+// [<ImportDefault("reconnecting-websocket")>]
+// type ReconnectingWebsocket(url: string) = nativeOnly
 
-[<ImportMember("react-icons/fa")>]
-let FaPaperclip: obj = jsNative
+type ReconnectingWebsocket =
+    [<Emit("new $0($1)")>]
+    abstract Create: string -> Browser.Types.WebSocket
+
+
+[<ImportDefault("reconnecting-websocket")>]
+let RWebSocket : ReconnectingWebsocket = jsNative
+
 
 // [<ImportMember("react-toastify")>]
 // let toast(text: string, ?options: obj): int = jsNative
@@ -48,7 +54,7 @@ module private Elmish =
         onlinePKs = Array.empty
         selfInfo = None
         selectedDialog = None
-        socket = ReconnectingWebsocket("ws://" + Browser.Dom.window.location.host + "/chat_ws")}, Cmd.none
+        socket = RWebSocket.Create("ws://" + Browser.Dom.window.location.host + "/chat_ws")}, Cmd.none
 
     type Msg =
         | SocketConnectionStateChanged of int
@@ -64,6 +70,8 @@ module private Elmish =
         | SetMessageIdRead of id: string
         | PerformSendingMessage
         | PerformFileUpload of Browser.Types.FileList
+        | SetShowNewChatPopup of show: bool
+        | SelectDialog of dialog: ChatItem
 
     let update (msg: Msg) (state: EState) =
         init()
@@ -92,19 +100,21 @@ module private Components =
         """
 
     [<JSX.Component>]
-    let MessageInputField (model:EState) (dispatch: Msg -> unit) =
-        let inputRef = React.useRef<HTMLInputElement option> (None)
-
-        // import {{ FaPaperclip}} from "react-icons/fa"
-
+    let MessageInputField (model:EState) (dispatch: Msg -> unit) (triggerFileRefClick: unit -> unit) =
+        let inputRef = React.useInputRef()
+        let leftBtnIcon = {|
+                        ``component`` = JSX.jsx "<FaPaperclip/>"
+                        size = 24
+                    |}
         JSX.jsx
             $"""
         import {{ Input, Button }} from "react-chat-elements"
+        import {{ FaPaperclip }} from "react-icons/fa"
 
         <Input
             placeholder="Type here to send a message."
             defaultValue=""
-            ref={inputRef}
+            referance={inputRef}
             multiline={true}
             onKeyPress={fun (e: KeyboardEvent) ->
               if e.charCode <> 13 then
@@ -121,7 +131,14 @@ module private Components =
               else
                 false
             }
-            leftButtons={Button "transparent" "black" FaPaperclip 24 false (fun _ -> ())}
+            leftButtons={{
+                    <Button
+                    type="transparent"
+                    color="black"
+                    onClick={triggerFileRefClick}
+                    icon={leftBtnIcon}
+                />
+            }}
             rightButtons={{
                 <Button
                     text='Send'
@@ -131,19 +148,30 @@ module private Components =
 
         """
 
+    [<JSX.Component>]
+    let PopUpChatList (model: EState) (dispatch: Msg -> unit) =
+        JSX.jsx $"""
+            <ChatList onClick={fun (item, i, e) ->
+                dispatch (Msg.SetShowNewChatPopup false)
+                dispatch (Msg.SelectDialog item)
+            }
+            dataSource={model.AvailableUsers}/>
+        """
 
 [<JSX.Component>]
 let App () =
     let model, dispatch = React.useElmish (Elmish.init, Elmish.update)
 
-//         import 'react-chat-elements/dist/main.css';
-//         import 'react-toastify/dist/ReactToastify.css';
-//         import './App.css';
     let fileInputRef = React.useRef<HTMLInputElement option> (None)
+
+    let triggerFileRefClick () = fileInputRef.current |> Option.iter (fun x -> x.click())
+
+
     JSX.jsx
         $"""
     import {{ ToastContainer }} from "react-toastify"
-    import {{ MessageList }} from "react-chat-elements"
+    import {{ MessageList, Popup, ChatList }} from "react-chat-elements"
+    import {{ FaWindowClose }} from "react-icons/fa"
 
     <div className="container">
         <div className="chat-list">
@@ -151,6 +179,34 @@ let App () =
         <div className="right-panel">
             <ToastContainer/>
 
+            <Popup
+                show={model.ShowNewChatPopup}
+                header='New chat'
+                headerButtons = {
+                                    [|
+                    {|
+                      ``type`` = "transparent"
+                      color = "black"
+                      text = "close"
+                      icon = {|
+                                size = 18
+                                ``component`` = JSX.jsx "<FaWindowClose/>"
+                               |}
+                      onClick = fun _ -> dispatch (Elmish.Msg.SetShowNewChatPopup false)
+                      |}
+
+                |]
+                }
+                renderContent = {fun () ->
+                    if model.UsersDataLoading then
+                        JSX.jsx "<div><p>Loading data...</p></div>"
+                    else
+                        if model.AvailableUsers.Length = 0 then
+                            JSX.jsx "<div><p>No users available</p></div>"
+                        else
+                            Components.PopUpChatList model dispatch
+                    }
+            />
             <MessageList
                 className='message-list'
                 lockable={true}
@@ -169,7 +225,7 @@ let App () =
                     dispatch (Elmish.Msg.PerformFileUpload files)}
                 ref={fileInputRef}
                 />
-            {Components.MessageInputField model dispatch}
+            {Components.MessageInputField model dispatch triggerFileRefClick}
         </div>
     </div>
     """
