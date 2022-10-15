@@ -26,6 +26,7 @@ let lodash_throttle(fn: (unit -> unit) * float) = jsNative
 [<ImportDefault("reconnecting-websocket")>]
 let RWebSocket : ReconnectingWebsocket = jsNative
 
+let TYPING_TIMEOUT: int = 5000
 
 // [<ImportMember("react-toastify")>]
 // let toast(text: string, ?options: obj): int = jsNative
@@ -66,6 +67,7 @@ module private Elmish =
         | DialogsFetched of dialogs: Result<ChatItem[],string>
         | SelfInfoFetched of selfInfo: Result<UserInfoResponse,string>
         | DialogsFiltered of dialogsFiltered: ChatItem[]
+        | RemoveTyping of pk: string
         | AddTyping of pk: string
         | ChangeOnline of pk: string * onoff: bool
         | AddMessage of msg: MessageBox
@@ -111,6 +113,19 @@ module private Elmish =
             match msgBox with
                 | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
                 | None -> state, Cmd.none
+        | RemoveTyping pk ->
+            printfn $"Removing {pk} from typing pk-s"
+            let newTypingPks = state.typingPKs |> Array.filter (fun x -> x = pk)
+            {state with typingPKs = newTypingPks}, Cmd.none
+
+        | AddTyping pk ->
+            printfn $"Adding {pk} to typing pk-s"
+            let newTypingPks = state.typingPKs |> Array.append [| pk |]
+            let cmd p = promise {
+                do! Promise.sleep TYPING_TIMEOUT
+                return p
+            }
+            {state with typingPKs = newTypingPks}, Cmd.OfPromise.perform cmd pk (Msg.RemoveTyping)
 
         | ChangeOnline (pk, onoff) ->
             printfn $"""Setting {pk} to {if onoff then "online" else "offline" } status"""
@@ -226,7 +241,7 @@ module private Elmish =
 module private Funcs =
     open Elmish
     open Browser.Types
-    let TYPING_TIMEOUT: float = 5000
+
 
     let getConnectionStateText (socketState: WebSocketState) =
         match socketState with
@@ -238,7 +253,7 @@ module private Funcs =
 
 
     let isTyping (socket: WebSocket) :unit->unit=
-        lodash_throttle((fun () -> Logic.sendIsTypingMessage socket),TYPING_TIMEOUT)
+        lodash_throttle((fun () -> Logic.sendIsTypingMessage socket),float TYPING_TIMEOUT)
 
 
 module private Components =
