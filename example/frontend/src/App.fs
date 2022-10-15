@@ -67,7 +67,7 @@ module private Elmish =
         | SelfInfoFetched of selfInfo: Result<UserInfoResponse,string>
         | DialogsFiltered of dialogsFiltered: ChatItem[]
         | AddTyping of pk: string
-        | ChangeOnline of pk: string
+        | ChangeOnline of pk: string * onoff: bool
         | AddMessage of msg: MessageBox
         | MessageIdChanged of old_int: int64 * new_id: int64
         | UnreadCountChanged of id: string * count: int
@@ -111,6 +111,33 @@ module private Elmish =
             match msgBox with
                 | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
                 | None -> state, Cmd.none
+
+        | ChangeOnline (pk, onoff) ->
+            printfn $"""Setting {pk} to {if onoff then "online" else "offline" } status"""
+            let newOnlines =
+                if onoff then
+                    state.onlinePKs |> Array.append [|pk|]
+                else
+                    state.onlinePKs |> Array.filter (fun x -> x = pk)
+
+            let newDialogList =
+                state.dialogList
+                |> Array.map (fun dlg ->
+                    if dlg.id = pk then
+                        if onoff then
+                            { dlg with statusColor = "lightgreen" }
+                        else
+                            { dlg with statusColor = "" }
+                    else
+                        dlg
+                    )
+
+            {state with
+                     dialogList = newDialogList
+                     onlinePKs = newOnlines
+                     //TODO: is resetting filtered needed ?
+                     filteredDialogList = newDialogList}, Cmd.none
+
         | MessageIdChanged (old_id, new_id) ->
             printfn $"Replacing random id {old_id} with db_id {new_id}"
             let newMsgList =
