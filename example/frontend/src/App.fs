@@ -101,7 +101,7 @@ module private Elmish =
 module private Funcs =
     open Elmish
     open Browser.Types
-    let getConnectionStateText (socketState: Browser.Types.WebSocketState) =
+    let getConnectionStateText (socketState: WebSocketState) =
         match socketState with
         | WebSocketState.CONNECTING -> "Connecting..."
         | WebSocketState.OPEN -> "Connected"
@@ -191,66 +191,71 @@ module private Components =
                         ``component`` = JSX.jsx "<FaTimesCircle/>"
                         size = 18
                         |}
+
+        let sidebarTop = JSX.jsx $"""
+            <span className='chat-list'>
+                <Input
+                    placeholder="Search..."
+                    referance={searchInputRef}
+                    onKeyPress={fun (e: KeyboardEvent) ->
+                      if e.charCode <> 13 then
+                        // TODO:
+                        // this.localSearch();
+                        false
+                      elif e.charCode = 13 then
+                        // TODO:
+                        // this.localSearch();
+                        printfn $"Search invoke with '{searchInputRef.current |> Option.map (fun x -> x.value)}'"
+                        e.preventDefault()
+                        false
+                      else
+                        false
+                    }
+                    rightButtons={{
+                    <div>
+                        <Button
+                            type="transparent"
+                            color="black"
+                            onClick={fun _ ->
+                                // TODO:
+                                // this.localSearch();
+                                printfn $"Search invoke with '{searchInputRef.current |> Option.map (fun x -> x.value)}'"
+                            }
+                            icon={searchIcon}
+                        />
+                        <Button
+                            type="transparent"
+                            color="black"
+                            onClick={fun _ -> searchInputRef.current |> Option.iter (fun x -> x.value <- "")}
+                            icon={clearIcon}
+                        />
+                    </div>
+                    }}
+                />
+                <ChatList
+                    onClick={fun (item, i, e) -> dispatch (Msg.SelectDialog item)}
+                    dataSource={model.filteredDialogList |> Array.sortByDescending (fun x -> x.date)}
+                />
+            </span>
+        """
+        let sidebarBottom = JSX.jsx $"""
+            <Button
+                type="transparent"
+                color="black"
+                disabled={true}
+                text={$"Connection state: {Funcs.getConnectionStateText model.socket.readyState}"}
+            />
+        """
+        let sidebarData = {|
+                            top= sidebarTop
+                            bottom=sidebarBottom
+                            |}
         JSX.jsx $"""
            import {{ SideBar, Input, Button }} from "react-chat-elements"
            import {{ FaSearch, FaTimesCircle }} from "react-icons/fa"
            <SideBar
                 type='light'
-                top={{
-                    <span className='chat-list'>
-                        <Input
-                            placeholder="Search..."
-                            referance={searchInputRef}
-                            onKeyPress={fun (e: KeyboardEvent) ->
-                              if e.charCode <> 13 then
-                                // TODO:
-                                // this.localSearch();
-                                false
-                              elif e.charCode = 13 then
-                                // TODO:
-                                // this.localSearch();
-                                printfn $"Search invoke with '{searchInputRef.current |> Option.map (fun x -> x.value)}'"
-                                e.preventDefault()
-                                false
-                              else
-                                false
-                            }
-                            rightButtons={{
-                            <div>
-                                <Button
-                                    type="transparent"
-                                    color="black"
-                                    onClick={fun _ ->
-                                        // TODO:
-                                        // this.localSearch();
-                                        printfn $"Search invoke with '{searchInputRef.current |> Option.map (fun x -> x.value)}'"
-                                    }
-                                    icon={searchIcon}
-                                />
-                                <Button
-                                    type="transparent"
-                                    color="black"
-                                    onClick={fun _ -> searchInputRef.current |> Option.iter (fun x -> x.value <- "")}
-                                    icon={clearIcon}
-                                />
-                            </div>
-                            }}
-                        />
-                        <ChatList
-                            onClick={fun (item, i, e) -> dispatch (Msg.SelectDialog item)}
-                            dataSource={model.filteredDialogList |> Array.sortByDescending (fun x -> x.date)}
-                        />
-                    </span>
-                }}
-
-                bottom={{
-                    <Button
-                    type="transparent"
-                    color="black"
-                    disabled={true}
-                    text={$"Connection state: {Funcs.getConnectionStateText model.socket.readyState}"}
-                    />
-                }}
+                data = {sidebarData}
            />
         """
 
