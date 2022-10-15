@@ -101,6 +101,10 @@ module private Elmish =
                           Msg.DialogsFetched // Map Success
                           (fun x -> DialogFetchingFailed (x.ToString())) // Map Exception
             {state with UsersDataLoading = true}, cmd
+
+        | DialogsFiltered dialogs ->
+            {state with filteredDialogList = dialogs }, Cmd.none
+
         | SetShowNewChatPopup show ->
             {state with ShowNewChatPopup = show}, Cmd.none
         | PerformSendingMessage text ->
@@ -275,9 +279,21 @@ module private Funcs =
         | _ -> "Unknown"
 
 
-    let isTyping (socket: WebSocket) :unit->unit=
+    let isTyping (socket: WebSocket) :unit -> unit=
         lodash_throttle((fun () -> Logic.sendIsTypingMessage socket),float TYPING_TIMEOUT)
 
+    let localSearch (searchInputRef: IRefValue<HTMLInputElement option>) (state: Elmish.State) dispatch :unit -> unit =
+        lodash_throttle((fun () ->
+            let value = searchInputRef.current |> Option.map (fun x -> x.value)
+            printfn $"Localsearch with {value}"
+            match value with
+            | Some v ->
+                let newDialogList = state.dialogList
+                                    |> Array.filter (fun x -> x.title.ToLower().Contains(v.ToLower()))
+                dispatch (Msg.DialogsFiltered newDialogList)
+            | None -> dispatch (Msg.DialogsFiltered state.filteredDialogList)
+
+            ),100)
 
 module private Components =
     open Elmish
@@ -371,7 +387,7 @@ module private Components =
                         ``component`` = JSX.jsx "<FaTimesCircle/>"
                         size = 18
                         |}
-
+        let localSearch = Funcs.localSearch searchInputRef model dispatch
         let sidebarTop = JSX.jsx $"""
             <span className='chat-list'>
                 <Input
@@ -379,12 +395,10 @@ module private Components =
                     referance={searchInputRef}
                     onKeyPress={fun (e: KeyboardEvent) ->
                       if e.charCode <> 13 then
-                        // TODO:
-                        // this.localSearch();
+                        localSearch()
                         false
                       elif e.charCode = 13 then
-                        // TODO:
-                        // this.localSearch();
+                        localSearch()
                         printfn $"Search invoke with '{searchInputRef.current |> Option.map (fun x -> x.value)}'"
                         e.preventDefault()
                         false
@@ -397,8 +411,7 @@ module private Components =
                             type="transparent"
                             color="black"
                             onClick={fun _ ->
-                                // TODO:
-                                // this.localSearch();
+                                localSearch()
                                 printfn $"Search invoke with '{searchInputRef.current |> Option.map (fun x -> x.value)}'"
                             }
                             icon={searchIcon}
