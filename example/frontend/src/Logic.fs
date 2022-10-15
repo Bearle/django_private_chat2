@@ -346,12 +346,12 @@ let filterMessagesForDialog (d: ChatItem option) (messages: MessageBox [])=
     | Some dialog -> messages |> Array.filter (fun m -> m.data.dialog_id = dialog.id)
     | None -> Array.empty
 
-let markMessagesForDialogAsRead (sock:WebSocket) (d: ChatItem) (messages: MessageBox []) (msgReadCallback: int64 -> unit)=
+let markMessagesForDialogAsRead (sock:WebSocket) (d: ChatItem) (messages: MessageBox []) =
     filterMessagesForDialog (Some d) messages
     |> Array.filter (fun y -> y.status <> MessageBoxStatus.Read && y.data.out = false && y.HasDbId() )
-    |> Array.iter (fun x ->
-        do msgReadCallback x.data.message_id
+    |> Array.map (fun x ->
         do sendMessageReadMessage sock d.id x.data.message_id
+        x.data.message_id
     )
 
 

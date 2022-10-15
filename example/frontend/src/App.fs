@@ -113,6 +113,29 @@ module private Elmish =
             match msgBox with
                 | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
                 | None -> state, Cmd.none
+
+        | SelectDialog dialog ->
+            printfn $"Selecting dialog {dialog.id}"
+            let newDialogList =
+                state.dialogList
+                |> Array.map (fun dlg ->
+                    if dlg.id = dialog.id then
+                        { dlg with statusColorType = Some "encircle" }
+                    else
+                        { dlg with statusColorType = None }
+                    )
+
+            let readMsgCmd =
+                Logic.markMessagesForDialogAsRead state.socket dialog state.messageList
+                |> Array.map (Msg.SetMsgIdAsRead)
+                |> Array.map Cmd.ofMsg
+                |> Cmd.batch
+
+            {state with dialogList = newDialogList
+                        selectedDialog = Some dialog
+                        //TODO: is resetting filtered needed ?
+                        filteredDialogList = newDialogList}, readMsgCmd
+
         | RemoveTyping pk ->
             printfn $"Removing {pk} from typing pk-s"
             let newTypingPks = state.typingPKs |> Array.filter (fun x -> x = pk)
