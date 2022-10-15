@@ -69,9 +69,8 @@ module private Elmish =
         | AddTyping of pk: string
         | ChangeOnline of pk: string
         | AddMessage of msg: MessageBox
-        | MessageIdChanged of old_int: string * new_id: string
+        | MessageIdChanged of old_int: int64 * new_id: int64
         | UnreadCountChanged of id: string * count: int
-        | SetMessageIdRead of id: string
         | PerformSendingMessage of text: string
         | PerformFileUpload of Browser.Types.FileList
         | SetShowNewChatPopup of show: bool
@@ -112,6 +111,48 @@ module private Elmish =
             match msgBox with
                 | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
                 | None -> state, Cmd.none
+        | MessageIdChanged (old_id, new_id) ->
+            printfn $"Replacing random id {old_id} with db_id {new_id}"
+            let newMsgList =
+                state.messageList
+                |> Array.map (fun msg ->
+                    if msg.data.message_id = old_id then
+                        if msg.data.out then
+                            {msg with status = MessageBoxStatus.Sent; data = {msg.data with message_id = new_id}}
+                        else
+                            match (state.selectedDialog |> Option.map (fun x -> x.id)) with
+                            | Some pk when pk = msg.data.dialog_id ->
+                                Logic.sendMessageReadMessage state.socket pk  new_id
+                                {msg with status = MessageBoxStatus.Read; data = {msg.data with message_id = new_id}}
+
+                            | _ -> {msg with status = MessageBoxStatus.Received; data = {msg.data with message_id = new_id}}
+
+                    else
+                        msg
+                    )
+            {state with messageList = newMsgList}, Cmd.none
+
+        | UnreadCountChanged (dialog_id, count) ->
+            printfn $"Got new unread count {count} for dialog {dialog_id}"
+
+            let mappingFn dlg =
+                if dlg.id = dialog_id then
+                    printfn $"Setting new unread count {count} for dialog {dialog_id}"
+                    { dlg with unread = count }
+                else
+                    dlg
+
+            let newDialogList =
+                state.dialogList
+                |> Array.map mappingFn
+            let newSelectedDialog =
+                state.selectedDialog
+                |> Option.map mappingFn
+            {state with
+                     dialogList = newDialogList
+                     selectedDialog = newSelectedDialog
+                     //TODO: is resetting filtered needed ?
+                     filteredDialogList = newDialogList}, Cmd.none
 
         | SetMsgIdAsRead msg_id ->
             printfn $"Setting {msg_id} as read"
