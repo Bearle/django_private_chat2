@@ -8,15 +8,15 @@ export default defineConfig(configEnv => ({
     plugins: [
         react(),
         svgrPlugin(),
-        legacy({
-            targets: ['> 0.01%']
-        })
+        // legacy({
+        //     targets: ['> 0.01%']
+        // })
     ],
     server: {
         host: "127.0.0.1"
+    },
+    build: {
+        outDir: '../static',
     }
-    // build: {
-    //     outDir: './build',
-    // }
 }))
 

@@ -28,7 +28,10 @@ module Utils =
         let mutable h1 = hashFnv32a(str, true, None)
         h1 + hashFnv32a(h1 + str, true, None)
 
-    let Identicon: obj = import "*" "identicon.js"
+
+    [<ImportDefault("identicon.js")>]
+    let Identicon: obj = jsNative
+
 
     let getPhotoString (inputString: string) (size: int option) =
         let size = size |> Option.defaultValue 20

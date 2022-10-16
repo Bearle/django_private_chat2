@@ -560,7 +560,10 @@ module private Components =
                     }}
                 />
                 <ChatList
-                    onClick={fun (item, i, e) -> dispatch (Msg.SelectDialog item)}
+                    onClick={fun (item, i, e) ->
+                        JS.console.log(item, i , e)
+                        dispatch (Msg.SelectDialog item)
+                    }
                     dataSource={model.filteredDialogList |> Array.sortByDescending (fun x -> x.date)}
                 />
             </span>
