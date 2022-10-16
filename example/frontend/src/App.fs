@@ -11,9 +11,6 @@ JsInterop.importSideEffects "react-chat-elements/dist/main.css"
 JsInterop.importSideEffects "react-toastify/dist/ReactToastify.css"
 JsInterop.importSideEffects "./App.css"
 
-// [<ImportDefault("reconnecting-websocket")>]
-// type ReconnectingWebsocket(url: string) = nativeOnly
-
 type ReconnectingWebsocket =
     [<Emit("new $0($1)")>]
     abstract Create: string -> Browser.Types.WebSocket
@@ -26,12 +23,23 @@ let lodash_throttle(fn: (unit -> unit) * float) = jsNative
 [<ImportDefault("reconnecting-websocket")>]
 let RWebSocket : ReconnectingWebsocket = jsNative
 
+
+let toastOptions: App.Utils.ToastOptions = {
+    autoClose = 1500
+    hideProgressBar = true
+    closeOnClick = false
+    pauseOnHover = false
+    pauseOnFocusLoss = false
+    draggable = false
+}
+
 let TYPING_TIMEOUT: int = 5000
 
 // [<ImportMember("react-toastify")>]
 // let toast(text: string, ?options: obj): int = jsNative
 module private Elmish =
     open Elmish
+    open App.Utils
     type State = {
         SocketConnectionState: int
         ShowNewChatPopup: bool
@@ -47,25 +55,22 @@ module private Elmish =
         socket: Browser.Types.WebSocket
     }
 
-    let init () = {
-        SocketConnectionState = 0
-        ShowNewChatPopup = false
-        UsersDataLoading = false
-        AvailableUsers = Array.empty
-        messageList = Array.empty
-        dialogList = Array.empty
-        filteredDialogList = Array.empty
-        typingPKs = Array.empty
-        onlinePKs = Array.empty
-        selfInfo = None
-        selectedDialog = None
-        socket = RWebSocket.Create("ws://" + Browser.Dom.window.location.host + "/chat_ws")}, Cmd.none
+
 
     type Msg =
-        | SocketConnectionStateChanged of int
+        | SocketConnectionStateChanged of WebSocketState
+        | LoadMessages
         | MessagesFetched of messages: Result<MessageBox[],string>
-        | DialogsFetched of dialogs: Result<ChatItem[],string>
+        | MessagesFetchingFailed of error: string
+        | LoadUsersData
+        | UsersDataFetched of users: Result<ChatItem[],string>
+        | UsersDataFetchingFailed of error: string
+        | LoadSelfInfo
         | SelfInfoFetched of selfInfo: Result<UserInfoResponse,string>
+        | SelfInfoFetchingFailed of error: string
+        | LoadDialogs
+        | DialogsFetched of dialogs: Result<ChatItem[],string>
+        | DialogsFetchingFailed of error: string
         | DialogsFiltered of dialogsFiltered: ChatItem[]
         | RemoveTyping of pk: string
         | AddTyping of pk: string
@@ -77,30 +82,118 @@ module private Elmish =
         | PerformFileUpload of Browser.Types.FileList
         | SetShowNewChatPopup of show: bool
         | SelectDialog of dialog: ChatItem
-        | LoadUsersData
-        | DialogFetchingFailed of error: string
         | FileUploadError of error: string
         | FileUploadSuccess of uploadRes: Result<MessageModelFile,string>
         | SetMsgIdAsRead of msg_id: int64
 
+    let init () =
+        let cmd = [| Msg.LoadMessages
+                     Msg.LoadDialogs
+                     Msg.LoadSelfInfo
+                  |] |> Array.map Cmd.ofMsg |> Cmd.batch
+        {
+        SocketConnectionState = 0
+        ShowNewChatPopup = false
+        UsersDataLoading = false
+        AvailableUsers = Array.empty
+        messageList = Array.empty
+        dialogList = Array.empty
+        filteredDialogList = Array.empty
+        typingPKs = Array.empty
+        onlinePKs = Array.empty
+        selfInfo = None
+        selectedDialog = None
+        socket = RWebSocket.Create("ws://" + Browser.Dom.window.location.host + "/chat_ws")}, cmd
+
     let update (msg: Msg) (state: State) =
         match msg with
-        | DialogFetchingFailed err ->
-            printfn $"Failed to fetch dialogs -  {err}"
+        | SocketConnectionStateChanged socketState ->
+            printfn $"SocketState changed to {socketState}"
+            state, Cmd.none
+        | UsersDataFetchingFailed err ->
+            printfn $"Failed to fetch users -  {err}"
+            toast.error(err)
             {state with UsersDataLoading = false}, Cmd.none
-        | DialogsFetched usersResults ->
+        | UsersDataFetched usersResults ->
             match usersResults with
             | Ok users ->
                 printfn $"Fetched users {users}"
                 {state with AvailableUsers=users},Cmd.none
-            | Error s -> state, Cmd.ofMsg (DialogFetchingFailed s)
+            | Error s -> state, Cmd.ofMsg (UsersDataFetchingFailed s)
         | LoadUsersData ->
             let cmd = Cmd.OfPromise.either
                           Logic.fetchUsersList // Promise
                           state.dialogList // Argument
-                          Msg.DialogsFetched // Map Success
-                          (fun x -> DialogFetchingFailed (x.ToString())) // Map Exception
+                          Msg.UsersDataFetched // Map Success
+                          (fun x -> UsersDataFetchingFailed (x.ToString())) // Map Exception
             {state with UsersDataLoading = true}, cmd
+
+        | MessagesFetchingFailed err ->
+            printfn $"Failed to fetch messages - {err}"
+            toast.error(err)
+            state, Cmd.none
+
+        | MessagesFetched messagesResults ->
+            match messagesResults with
+            | Ok messages ->
+                printfn $"Fetched messages {messages}"
+                {state with messageList=messages},Cmd.none
+            | Error s -> state, Cmd.ofMsg (MessagesFetchingFailed s)
+
+        | LoadMessages ->
+            let cmd = Cmd.OfPromise.either
+                          Logic.fetchMessages // Promise
+                          () // Argument
+                          Msg.MessagesFetched // Map Success
+                          (fun x -> Msg.MessagesFetchingFailed (x.ToString())) // Map Exception
+            state, cmd
+
+        | DialogsFetchingFailed err ->
+            printfn $"Failed to fetch dialogs - {err}"
+            toast.error(err)
+            state, Cmd.none
+
+        | DialogsFetched dialogsResults ->
+            match dialogsResults with
+            | Ok dialogs ->
+                printfn $"Fetched dialogs {dialogs}"
+                let cmd =
+                    match Array.tryHead dialogs with
+                    | Some d -> Msg.SelectDialog d |> Cmd.ofMsg
+                    | None -> Cmd.none
+
+                {state with dialogList=dialogs; filteredDialogList=dialogs},cmd
+
+            | Error s -> state, Cmd.ofMsg (DialogsFetchingFailed s)
+
+        | LoadDialogs ->
+            let cmd = Cmd.OfPromise.either
+                          Logic.fetchDialogs // Promise
+                          () // Argument
+                          Msg.DialogsFetched // Map Success
+                          (fun x -> Msg.DialogsFetchingFailed (x.ToString())) // Map Exception
+            state, cmd
+
+
+        | SelfInfoFetchingFailed err ->
+            printfn $"Failed to fetch selfInfo - {err}"
+            toast.error(err)
+            state, Cmd.none
+
+        | SelfInfoFetched selfInfoResults ->
+            match selfInfoResults with
+            | Ok selfInfo ->
+                printfn $"Fetched selfInfo {selfInfo}"
+                {state with selfInfo=Some selfInfo},Cmd.none
+            | Error s -> state, Cmd.ofMsg (SelfInfoFetchingFailed s)
+
+        | LoadSelfInfo ->
+            let cmd = Cmd.OfPromise.either
+                          Logic.fetchSelfInfo // Promise
+                          () // Argument
+                          Msg.SelfInfoFetched // Map Success
+                          (fun x -> Msg.SelfInfoFetchingFailed (x.ToString())) // Map Exception
+            state, cmd
 
         | DialogsFiltered dialogs ->
             {state with filteredDialogList = dialogs }, Cmd.none
@@ -282,10 +375,10 @@ module private Elmish =
             printfn "File upload starting..."
             let cookie = App.Utils.getCookie() |> Option.defaultValue ""
             let cmd = Cmd.OfPromise.either
-                            (Logic.uploadFile files)
-                            cookie
-                            Msg.FileUploadSuccess
-                            (fun x -> Msg.FileUploadError (x.ToString()))
+                            (Logic.uploadFile files) // Promise
+                            cookie // Argument
+                            Msg.FileUploadSuccess // Map Success
+                            (fun x -> Msg.FileUploadError (x.ToString())) // Map Exception
             state, cmd
         | FileUploadSuccess fileResult ->
             match fileResult with
@@ -303,9 +396,8 @@ module private Elmish =
             | Error s -> state, Cmd.ofMsg (Msg.FileUploadError s)
         | FileUploadError err ->
             printfn $"File upload error - {err}"
+            toast.error(err)
             state, Cmd.none
-        | other -> printfn $"Received unsupported msg {other}, ignoring";state,Cmd.none
-        // init()
 
 module private Funcs =
     open Elmish
@@ -561,6 +653,34 @@ let App () =
     let triggerFileRefClick () = fileInputRef.current |> Option.iter (fun x -> x.click())
 
 
+    React.useEffectOnce (fun () ->
+        printfn "Running socket setup..."
+        let socket = model.socket
+        socket.onopen <-
+            fun (e) ->
+                printfn "Connected!"
+                App.Utils.toast.success("Connected!", toastOptions)
+                dispatch (Elmish.Msg.SocketConnectionStateChanged socket.readyState)
+        socket.onclose <-
+            fun (e) ->
+                printfn "Disconnected!"
+                App.Utils.toast.info("Disconnected...", toastOptions)
+                dispatch (Elmish.Msg.SocketConnectionStateChanged socket.readyState)
+        socket.onmessage <-
+            fun (e) ->
+                printfn "Received message"
+                dispatch (Elmish.Msg.SocketConnectionStateChanged socket.readyState)
+                let callbacks: Logic.WSHandlingCallbacks = {
+                    addMessage = Elmish.Msg.AddMessage >> dispatch
+                    replaceMessageId = Elmish.Msg.MessageIdChanged >> dispatch
+                    addPKToTyping = Elmish.Msg.AddTyping >> dispatch
+                    changePKOnlineStatus = Elmish.Msg.ChangeOnline >> dispatch
+                    setMessageIdAsRead = Elmish.Msg.SetMsgIdAsRead >> dispatch
+                    newUnreadCount = Elmish.Msg.UnreadCountChanged >> dispatch
+                }
+                let err = Logic.handleIncomingWebsocketMessage socket (e.data :?> string) callbacks
+                err |> Option.iter (App.Utils.toast.error)
+    )
     JSX.jsx
         $"""
     import {{ ToastContainer }} from "react-toastify"

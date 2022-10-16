@@ -114,11 +114,11 @@ let createNewDialogModelFromIncomingMessageBox (m: MessageBox) =
 type WSHandlingCallbacks =
     {
         addMessage: MessageBox -> unit
-        replaceMessageId: int64 -> int64 -> unit
+        replaceMessageId: int64 * int64 -> unit
         addPKToTyping: string -> unit
-        changePKOnlineStatus: string -> bool -> unit
+        changePKOnlineStatus: string * bool -> unit
         setMessageIdAsRead: int64 -> unit
-        newUnreadCount: string -> int -> unit
+        newUnreadCount: string * int -> unit
     }
 let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callbacks: WSHandlingCallbacks) =
     let res =
@@ -140,7 +140,7 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
             | MessageTypes.MessageIdCreated ->
                 printfn $"Received MessageTypes.MessageIdCreated - %s{message}"
                 Decode.fromString MessageTypeMessageIdCreated.Decoder message
-                |> Result.map (fun d -> callbacks.replaceMessageId d.random_id d.db_id)
+                |> Result.map (fun d -> callbacks.replaceMessageId (d.random_id,d.db_id))
 
             | MessageTypes.IsTyping ->
                 printfn $"Received MessageTypes.IsTyping - %s{message}"
@@ -150,12 +150,12 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
             | MessageTypes.WentOnline ->
                 printfn $"Received MessageTypes.WentOnline - %s{message}"
                 Decode.fromString GenericUserPKMessage.Decoder message
-                |> Result.map (fun d -> callbacks.changePKOnlineStatus d.user_pk true)
+                |> Result.map (fun d -> callbacks.changePKOnlineStatus (d.user_pk, true))
 
             | MessageTypes.WentOffline ->
                 printfn $"Received MessageTypes.WentOffline - %s{message}"
                 Decode.fromString GenericUserPKMessage.Decoder message
-                |> Result.map (fun d -> callbacks.changePKOnlineStatus d.user_pk false)
+                |> Result.map (fun d -> callbacks.changePKOnlineStatus (d.user_pk, false))
 
             | MessageTypes.MessageRead ->
                 printfn $"Received MessageTypes.MessageRead - %s{message}"
@@ -165,7 +165,7 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
             | MessageTypes.NewUnreadCount ->
                 printfn $"Received MessageTypes.NewUnreadCount - %s{message}"
                 Decode.fromString MessageTypeNewUnreadCount.Decoder message
-                |> Result.map (fun d -> callbacks.newUnreadCount d.sender d.unread_count)
+                |> Result.map (fun d -> callbacks.newUnreadCount (d.sender, d.unread_count))
             | MessageTypes.ErrorOccurred ->
                 printfn $"Received MessageTypes.ErrorOccurred - %s{message}"
                 let decoded = Decode.fromString MessageTypeErrorOccurred.Decoder message

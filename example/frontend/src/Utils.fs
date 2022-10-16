@@ -63,3 +63,28 @@ module Utils =
 
 
         cookieValue
+
+    type ToastOptions = {
+        autoClose: int
+        hideProgressBar: bool
+        closeOnClick: bool
+        pauseOnHover: bool
+        pauseOnFocusLoss: bool
+        draggable: bool
+    }
+
+    type ReactToastify =
+        abstract error: string -> unit
+        abstract error: string * ToastOptions -> unit
+        abstract success: string -> unit
+        abstract success: string * ToastOptions -> unit
+        abstract info: string -> unit
+        abstract info: string * ToastOptions -> unit
+
+
+    [<Import("toast",from="react-toastify")>]
+    let toast : ReactToastify = jsNative
+
+
+
+
