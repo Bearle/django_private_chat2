@@ -17,6 +17,22 @@ export default defineConfig(configEnv => ({
     },
     build: {
         outDir: '../static',
+        sourcemap: true,
+        rollupOptions: {
+            output: {
+                assetFileNames: (assetInfo) => {
+                    let extType = assetInfo.name.split('.').at(1);
+                    if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
+                        extType = 'img';
+                    }
+                    if (extType === "css") {
+                        return `css/[name][extname]`
+                    }
+                    return `static/media/[name][extname]`;
+                },
+                entryFileNames: "js/[name].js"
+            }
+        }
     }
 }))
 

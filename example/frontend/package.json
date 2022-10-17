@@ -9,13 +9,13 @@
     "terser": "^5.15.1",
     "lorem-ipsum": "^2.0.8",
     "vite": "^3.1.8",
-    "vite-plugin-svgr": "^2.2.2"
+    "vite-plugin-svgr": "^2.2.2",
+    "react-chat-elements": "^12.0.5"
   },
   "dependencies": {
     "lodash.throttle": "^4.1.1",
     "identicon.js": "^2.3.3",
     "react": "^18.2.0",
-    "react-chat-elements": "^12.0.5",
     "react-dom": "^18.2.0",
     "react-icons": "^4.4.0",
     "react-toastify": "^9.0.8",

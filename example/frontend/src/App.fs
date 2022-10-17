@@ -117,7 +117,8 @@ module private Elmish =
         | UsersDataFetched usersResults ->
             match usersResults with
             | Ok users ->
-                printfn $"Fetched users {users}"
+                printfn $"Fetched users"
+                JS.console.log(users)
                 {state with AvailableUsers=users},Cmd.none
             | Error s -> state, Cmd.ofMsg (UsersDataFetchingFailed s)
         | LoadUsersData ->
@@ -136,7 +137,8 @@ module private Elmish =
         | MessagesFetched messagesResults ->
             match messagesResults with
             | Ok messages ->
-                printfn $"Fetched messages {messages}"
+                printfn $"Fetched messages"
+                JS.console.log(messages)
                 {state with messageList=messages},Cmd.none
             | Error s -> state, Cmd.ofMsg (MessagesFetchingFailed s)
 
@@ -156,7 +158,8 @@ module private Elmish =
         | DialogsFetched dialogsResults ->
             match dialogsResults with
             | Ok dialogs ->
-                printfn $"Fetched dialogs {dialogs}"
+                printfn $"Fetched dialogs"
+                JS.console.log(dialogs)
                 let cmd =
                     match Array.tryHead dialogs with
                     | Some d -> Msg.SelectDialog d |> Cmd.ofMsg
@@ -433,7 +436,6 @@ module private Components =
     open Elmish
     open Browser.Types
 
-
     [<JSX.Component>]
     let Button (ttype: string) (color: string) (iconComponent: obj) (size: int) (disabled: bool) onClick =
         let icon = {|
@@ -511,6 +513,28 @@ module private Components =
         """
 
     [<JSX.Component>]
+    let CustomChatList className dataSource onClick =
+        let className = $"""rce-container-clist {className |> Option.defaultValue ""}"""
+
+        let chatItems = dataSource |> Seq.mapi (fun i x ->
+            JSX.jsx $"""
+            <ChatItemR
+            {JsInterop.emitJsExpr () "...x"}
+            key={i}
+            onClick={fun (_) -> onClick |> Option.iter (fun z -> z(x,i))}
+            />
+            """
+            )
+        let style = JsInterop.createObj [ ("display", "block"); ("overflow","auto") ]
+
+        JSX.jsx $"""
+        import {{ ChatItem as ChatItemR }} from "react-chat-elements"
+        <div className={className} style={style}>
+          {chatItems}
+        </div>
+        """
+
+    [<JSX.Component>]
     let SideBarChatList (model: State) (dispatch: Msg -> unit) =
         let searchInputRef = React.useInputRef()
         let searchIcon = {|
@@ -522,6 +546,17 @@ module private Components =
                         size = 18
                         |}
         let localSearch = Funcs.localSearch searchInputRef model dispatch
+        JS.console.log(model.filteredDialogList)
+
+        let customChatListFunction =  fun (item, i: int) ->
+                        JS.console.log(item, i )
+                        dispatch (Msg.SelectDialog item)
+
+        let customChatList = CustomChatList None
+                                model.filteredDialogList
+                                (Some customChatListFunction)
+
+
         let sidebarTop = JSX.jsx $"""
             <span className='chat-list'>
                 <Input
@@ -559,13 +594,7 @@ module private Components =
                     </div>
                     }}
                 />
-                <ChatList
-                    onClick={fun (item, i, e) ->
-                        JS.console.log(item, i , e)
-                        dispatch (Msg.SelectDialog item)
-                    }
-                    dataSource={model.filteredDialogList |> Array.sortByDescending (fun x -> x.date)}
-                />
+                {customChatList}
             </span>
         """
         let sidebarBottom = JSX.jsx $"""
@@ -594,6 +623,7 @@ module private Components =
         JSX.jsx $"""
             import {{ ChatList }} from "react-chat-elements"
             <ChatList onClick={fun (item, i, e) ->
+                JS.console.log(item, i , e)
                 dispatch (Msg.SetShowNewChatPopup false)
                 dispatch (Msg.SelectDialog item)
             }
