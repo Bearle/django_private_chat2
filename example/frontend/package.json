@@ -26,7 +26,7 @@
     "postinstall": "dotnet tool restore",
     "start:fable": "dotnet fable watch .",
     "start": "dotnet fable watch . -o dist -e .jsx --run vite serve",
-    "build": "dotnet fable . -o dist -e .jsx --run vite build",
+    "build": "dotnet fable -s . -o dist -e .jsx --run vite build",
     "build:jsonly": "webpack --mode production --watch"
   },
   "browserslist": {

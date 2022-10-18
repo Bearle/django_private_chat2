@@ -106,6 +106,11 @@ module private Elmish =
         socket = RWebSocket.Create("ws://" + Browser.Dom.window.location.host + "/chat_ws")}, cmd
 
     let update (msg: Msg) (state: State) =
+
+        JS.console.log "Update cycle received msg: "
+        printfn "%A" msg
+        JS.console.log "And State: "
+        JS.console.log state
         match msg with
         | SocketConnectionStateChanged socketState ->
             printfn $"SocketState changed to {socketState}"
@@ -222,11 +227,8 @@ module private Elmish =
                     Logic.sendMessageReadMessage state.socket msg.data.dialog_id msg.data.message_id
                     actualNewMsg <- {msg with status = MessageBoxStatus.Read}
 
-            let newMessageList = state.messageList
-                                        |> Array.map (fun x ->
-                                            if x.data.message_id = msg.data.message_id then
-                                                actualNewMsg
-                                            else x)
+
+            let newMessageList =  [| actualNewMsg |] |> Array.append state.messageList
 
             let mutable doesntNeedLastMessageSet = false
 
@@ -238,7 +240,7 @@ module private Elmish =
                                        |> Array.exists (fun e -> e.id = msg.data.dialog_id)
                 if not hasDialogAlready then
                     let d = Logic.createNewDialogModelFromIncomingMessageBox(msg)
-                    newDialogList <- state.dialogList |> Array.append [| d |]
+                    newDialogList <- [| d |] |> Array.append state.dialogList
                     doesntNeedLastMessageSet <- true
 
             if not doesntNeedLastMessageSet then
@@ -280,12 +282,12 @@ module private Elmish =
 
         | RemoveTyping pk ->
             printfn $"Removing {pk} from typing pk-s"
-            let newTypingPks = state.typingPKs |> Array.filter (fun x -> x = pk)
+            let newTypingPks = state.typingPKs |> Array.filter (fun x -> x <> pk)
             {state with typingPKs = newTypingPks}, Cmd.none
 
         | AddTyping pk ->
             printfn $"Adding {pk} to typing pk-s"
-            let newTypingPks = state.typingPKs |> Array.append [| pk |]
+            let newTypingPks = [| pk |] |> Array.append state.typingPKs
             let cmd p = promise {
                 do! Promise.sleep TYPING_TIMEOUT
                 return p
@@ -296,9 +298,9 @@ module private Elmish =
             printfn $"""Setting {pk} to {if onoff then "online" else "offline" } status"""
             let newOnlines =
                 if onoff then
-                    state.onlinePKs |> Array.append [|pk|]
+                    [|pk|] |> Array.append state.onlinePKs
                 else
-                    state.onlinePKs |> Array.filter (fun x -> x = pk)
+                    state.onlinePKs |> Array.filter (fun x -> x <> pk)
 
             let newDialogList =
                 state.dialogList
@@ -516,7 +518,9 @@ module private Components =
     let CustomChatList className dataSource onClick =
         let className = $"""rce-container-clist {className |> Option.defaultValue ""}"""
 
-        let chatItems = dataSource |> Seq.mapi (fun i x ->
+        let chatItems = dataSource
+                        // |> Seq.sortByDescending (fun x ->  x.date)
+                        |> Seq.mapi (fun i x ->
             JSX.jsx $"""
             <ChatItemR
             {JsInterop.emitJsExpr () "...x"}
@@ -546,10 +550,10 @@ module private Components =
                         size = 18
                         |}
         let localSearch = Funcs.localSearch searchInputRef model dispatch
-        JS.console.log(model.filteredDialogList)
+        // JS.console.log(model.filteredDialogList)
 
         let customChatListFunction =  fun (item, i: int) ->
-                        JS.console.log(item, i )
+                        // JS.console.log(item, i )
                         dispatch (Msg.SelectDialog item)
 
         let customChatList = CustomChatList None
@@ -623,7 +627,7 @@ module private Components =
         JSX.jsx $"""
             import {{ ChatList }} from "react-chat-elements"
             <ChatList onClick={fun (item, i, e) ->
-                JS.console.log(item, i , e)
+                // JS.console.log(item, i , e)
                 dispatch (Msg.SetShowNewChatPopup false)
                 dispatch (Msg.SelectDialog item)
             }
@@ -684,9 +688,16 @@ let App () =
     let fileInputRef = React.useRef<HTMLInputElement option> (None)
 
     let triggerFileRefClick () = fileInputRef.current |> Option.iter (fun x -> x.click())
+    let callbacks: Logic.WSHandlingCallbacks = {
+        addMessage = (fun msg -> dispatch (Elmish.Msg.AddMessage msg))
+        replaceMessageId = (fun (old_id, new_id) -> dispatch (Elmish.Msg.MessageIdChanged (old_id, new_id)))
+        addPKToTyping = (fun pk -> dispatch (Elmish.Msg.AddTyping pk))
+        changePKOnlineStatus = (fun (pk, onoff) -> dispatch (Elmish.Msg.ChangeOnline (pk, onoff)))
+        setMessageIdAsRead = (fun msg_id -> dispatch (Elmish.Msg.SetMsgIdAsRead msg_id))
+        newUnreadCount = (fun (id, count) -> dispatch (Elmish.Msg.UnreadCountChanged (id, count)))
+    }
 
-
-    React.useEffectOnce (fun () ->
+    React.useEffect ((fun () ->
         printfn "Running socket setup..."
         let socket = model.socket
         socket.onopen <-
@@ -701,19 +712,20 @@ let App () =
                 dispatch (Elmish.Msg.SocketConnectionStateChanged socket.readyState)
         socket.onmessage <-
             fun (e) ->
-                printfn "Received message"
+                printfn "Received websocket message"
                 dispatch (Elmish.Msg.SocketConnectionStateChanged socket.readyState)
-                let callbacks: Logic.WSHandlingCallbacks = {
-                    addMessage = Elmish.Msg.AddMessage >> dispatch
-                    replaceMessageId = Elmish.Msg.MessageIdChanged >> dispatch
-                    addPKToTyping = Elmish.Msg.AddTyping >> dispatch
-                    changePKOnlineStatus = Elmish.Msg.ChangeOnline >> dispatch
-                    setMessageIdAsRead = Elmish.Msg.SetMsgIdAsRead >> dispatch
-                    newUnreadCount = Elmish.Msg.UnreadCountChanged >> dispatch
-                }
+
                 let err = Logic.handleIncomingWebsocketMessage socket (e.data :?> string) callbacks
                 err |> Option.iter (App.Utils.toast.error)
-    )
+    ), [| box model.socket ; box dispatch |])
+
+    let filteredMessages =
+        match model.selectedDialog with
+        | Some dialog -> model.messageList |> Array.filter (fun m -> m.data.dialog_id = dialog.id)
+        | None -> Array.empty
+
+    JS.console.log("filtered messages:")
+    JS.console.log(filteredMessages)
     JSX.jsx
         $"""
     import {{ ToastContainer }} from "react-toastify"
@@ -764,7 +776,7 @@ let App () =
                                     |> Option.filter (fun x -> x > 0)
                                     |> Option.map string
                                     |> Option.defaultValue ""}
-                dataSource={Logic.filterMessagesForDialog model.selectedDialog model.messageList}/>
+                dataSource={filteredMessages}/>
 
             <input id='selectFile'
                 hidden
