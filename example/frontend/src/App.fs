@@ -780,36 +780,6 @@ let App () =
         <div className="right-panel">
             <ToastContainer/>
             <Popup popup = {popUp}  />
-
-            <Popup
-
-                show={model.ShowNewChatPopup}
-                header='New chat'
-                headerButtons = {
-                                    [|
-                    {|
-                      ``type`` = "transparent"
-                      color = "black"
-                      text = "close"
-                      icon = {|
-                                size = 18
-                                ``component`` = JSX.jsx "<FaWindowClose/>"
-                               |}
-                      onClick = fun _ -> dispatch (Elmish.Msg.SetShowNewChatPopup false)
-                      |}
-
-                |]
-                }
-                renderContent = {fun () ->
-                    if model.UsersDataLoading then
-                        JSX.jsx "<div><p>Loading data...</p></div>"
-                    else
-                        if model.AvailableUsers.Length = 0 then
-                            JSX.jsx "<div><p>No users available</p></div>"
-                        else
-                            Components.PopUpRightPanel model dispatch
-                    }
-            />
             {Components.NavbarRightPanel model dispatch}
             <MessageList
                 className='message-list'
