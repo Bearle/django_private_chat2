@@ -122,9 +122,9 @@ module private Elmish =
         | UsersDataFetched usersResults ->
             match usersResults with
             | Ok users ->
-                printfn $"Fetched users"
+                printfn "Fetched users"
                 JS.console.log(users)
-                {state with AvailableUsers=users},Cmd.none
+                {state with AvailableUsers=users; UsersDataLoading = false},Cmd.none
             | Error s -> state, Cmd.ofMsg (UsersDataFetchingFailed s)
         | LoadUsersData ->
             let cmd = Cmd.OfPromise.either
@@ -724,6 +724,35 @@ let App () =
         | Some dialog -> model.messageList |> Array.filter (fun m -> m.data.dialog_id = dialog.id)
         | None -> Array.empty
 
+
+    let popUp =  {|
+                   show=model.ShowNewChatPopup
+                   header = "New chat"
+                   headerButtons =
+                            [|
+                                {|
+                                  ``type`` = "transparent"
+                                  color = "black"
+                                  text = "close"
+                                  icon = {|
+                                            size = 18
+                                            ``component`` = JSX.jsx "<FaWindowClose/>"
+                                           |}
+                                  onClick = fun _ -> dispatch (Elmish.Msg.SetShowNewChatPopup false)
+                                |}
+                            |]
+
+                   renderContent = fun () ->
+                        if model.UsersDataLoading then
+                            JSX.jsx "<div><p>Loading data...</p></div>"
+                        else
+                            if model.AvailableUsers.Length = 0 then
+                                JSX.jsx "<div><p>No users available</p></div>"
+                            else
+                                Components.PopUpRightPanel model dispatch
+                 |}
+
+
     JS.console.log("filtered messages:")
     JS.console.log(filteredMessages)
     JSX.jsx
@@ -738,8 +767,10 @@ let App () =
         </div>
         <div className="right-panel">
             <ToastContainer/>
+            <Popup popup = {popUp}  />
 
             <Popup
+
                 show={model.ShowNewChatPopup}
                 header='New chat'
                 headerButtons = {
