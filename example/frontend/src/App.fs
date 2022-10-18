@@ -209,15 +209,18 @@ module private Elmish =
         | SetShowNewChatPopup show ->
             {state with ShowNewChatPopup = show}, Cmd.none
         | PerformSendingMessage text ->
-            let msgBox =
-                state.selectedDialog
-                |> Option.map (fun x -> x.id)
-                |> Option.bind (fun pk -> Logic.sendOutgoingTextMessage state.socket text pk state.selfInfo)
+            if String.IsNullOrEmpty(text) then
+                state, Cmd.none
+            else
+                let msgBox =
+                    state.selectedDialog
+                    |> Option.map (fun x -> x.id)
+                    |> Option.bind (fun pk -> Logic.sendOutgoingTextMessage state.socket text pk state.selfInfo)
 
-            printfn $"sendOutgoingTextMessage result:{msgBox}"
-            match msgBox with
-                | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
-                | None -> state, Cmd.none
+                printfn $"sendOutgoingTextMessage result:{msgBox}"
+                match msgBox with
+                    | Some msg -> state, Cmd.ofMsg (Msg.AddMessage msg)
+                    | None -> state, Cmd.none
         | AddMessage msg ->
             printfn "Calling addMessage for"
             JS.console.log msg
@@ -518,17 +521,22 @@ module private Components =
     let CustomChatList className dataSource onClick =
         let className = $"""rce-container-clist {className |> Option.defaultValue ""}"""
 
-        let chatItems = dataSource
-                        // |> Seq.sortByDescending (fun x ->  x.date)
-                        |> Seq.mapi (fun i x ->
-            JSX.jsx $"""
-            <ChatItemR
-            {JsInterop.emitJsExpr () "...x"}
-            key={i}
-            onClick={fun (_) -> onClick |> Option.iter (fun z -> z(x,i))}
-            />
-            """
+
+        let chatItems =
+          if Array.isEmpty dataSource then
+            [||]
+          else
+            dataSource
+            |> Array.mapi (fun i x ->
+                JSX.jsx $"""
+                <ChatItemR
+                {JsInterop.emitJsExpr () "...x"}
+                key={i}
+                onClick={fun (_) -> onClick |> Option.iter (fun z -> z(x,i))}
+                />
+                """
             )
+
         let style = JsInterop.createObj [ ("display", "block"); ("overflow","auto") ]
 
         JSX.jsx $"""
@@ -540,6 +548,10 @@ module private Components =
 
     [<JSX.Component>]
     let SideBarChatList (model: State) (dispatch: Msg -> unit) =
+        let chats = React.useMemo ((fun () -> model.filteredDialogList
+                                                |> Array.sortByDescending (fun x -> x.date)),
+                               [|model.filteredDialogList|])
+
         let searchInputRef = React.useInputRef()
         let searchIcon = {|
                         ``component`` = JSX.jsx "<FaSearch/>"
@@ -557,7 +569,7 @@ module private Components =
                         dispatch (Msg.SelectDialog item)
 
         let customChatList = CustomChatList None
-                                model.filteredDialogList
+                                chats
                                 (Some customChatListFunction)
 
 
