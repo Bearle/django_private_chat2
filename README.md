@@ -16,7 +16,7 @@ Chat app for Django, powered by Django Channels, Websockets & Asyncio
 Documentation
 -------------
 
-The full documentation **will be** at <https://django_private_chat2.readthedocs.io>.
+The full documentation **will be** at <https://django-private-chat2.readthedocs.io>.
 
 Quickstart
 ----------
