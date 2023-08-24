@@ -1,4 +1,4 @@
-module App
+module Logic
 
 open System
 open Browser.Types
@@ -114,11 +114,11 @@ let createNewDialogModelFromIncomingMessageBox (m: MessageBox) =
 type WSHandlingCallbacks =
     {
         addMessage: MessageBox -> unit
-        replaceMessageId: int64 -> int64 -> unit
+        replaceMessageId: int64 * int64 -> unit
         addPKToTyping: string -> unit
-        changePKOnlineStatus: string -> bool -> unit
+        changePKOnlineStatus: string * bool -> unit
         setMessageIdAsRead: int64 -> unit
-        newUnreadCount: string -> int -> unit
+        newUnreadCount: string * int -> unit
     }
 let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callbacks: WSHandlingCallbacks) =
     let res =
@@ -126,73 +126,73 @@ let handleIncomingWebsocketMessage (sock: WebSocket) (message: string) (callback
         |> Result.bind (fun o ->
             match o with
             | MessageTypes.TextMessage ->
-                printfn "Received MessageTypes.TextMessage - %s" message
+                printfn $"Received MessageTypes.TextMessage - %s{message}"
                 Decode.fromString MessageTypeTextMessage.Decoder message
                 |> Result.map createMessageBoxFromMessageTypeTextMessage
                 |> Result.map (callbacks.addMessage)
 
             | MessageTypes.FileMessage ->
-                printfn "Received MessageTypes.FileMessage - %s" message
+                printfn $"Received MessageTypes.FileMessage - %s{message}"
                 Decode.fromString MessageTypeFileMessage.Decoder message
                 |> Result.map createMessageBoxFromMessageTypeFileMessage
                 |> Result.map (callbacks.addMessage)
 
             | MessageTypes.MessageIdCreated ->
-                printfn "Received MessageTypes.MessageIdCreated - %s" message
+                printfn $"Received MessageTypes.MessageIdCreated - %s{message}"
                 Decode.fromString MessageTypeMessageIdCreated.Decoder message
-                |> Result.map (fun d -> callbacks.replaceMessageId d.random_id d.db_id)
+                |> Result.map (fun d -> callbacks.replaceMessageId (d.random_id,d.db_id))
 
             | MessageTypes.IsTyping ->
-                printfn "Received MessageTypes.IsTyping - %s" message
+                printfn $"Received MessageTypes.IsTyping - %s{message}"
                 Decode.fromString GenericUserPKMessage.Decoder message
                 |> Result.map (fun d -> callbacks.addPKToTyping d.user_pk)
 
             | MessageTypes.WentOnline ->
-                printfn "Received MessageTypes.WentOnline - %s" message
+                printfn $"Received MessageTypes.WentOnline - %s{message}"
                 Decode.fromString GenericUserPKMessage.Decoder message
-                |> Result.map (fun d -> callbacks.changePKOnlineStatus d.user_pk true)
+                |> Result.map (fun d -> callbacks.changePKOnlineStatus (d.user_pk, true))
 
             | MessageTypes.WentOffline ->
-                printfn "Received MessageTypes.WentOffline - %s" message
+                printfn $"Received MessageTypes.WentOffline - %s{message}"
                 Decode.fromString GenericUserPKMessage.Decoder message
-                |> Result.map (fun d -> callbacks.changePKOnlineStatus d.user_pk false)
+                |> Result.map (fun d -> callbacks.changePKOnlineStatus (d.user_pk, false))
 
             | MessageTypes.MessageRead ->
-                printfn "Received MessageTypes.MessageRead - %s" message
+                printfn $"Received MessageTypes.MessageRead - %s{message}"
                 Decode.fromString MessageTypeMessageRead.Decoder message
                 |> Result.map (fun d -> callbacks.setMessageIdAsRead d.message_id)
 
             | MessageTypes.NewUnreadCount ->
-                printfn "Received MessageTypes.NewUnreadCount - %s" message
+                printfn $"Received MessageTypes.NewUnreadCount - %s{message}"
                 Decode.fromString MessageTypeNewUnreadCount.Decoder message
-                |> Result.map (fun d -> callbacks.newUnreadCount d.sender d.unread_count)
+                |> Result.map (fun d -> callbacks.newUnreadCount (d.sender, d.unread_count))
             | MessageTypes.ErrorOccurred ->
-                printfn "Received MessageTypes.ErrorOccurred - %s" message
+                printfn $"Received MessageTypes.ErrorOccurred - %s{message}"
                 let decoded = Decode.fromString MessageTypeErrorOccurred.Decoder message
                 match decoded with
                 | Result.Ok err ->
-                    let msg = sprintf "Error: %A, message %s" (fst err.error) (snd err.error)
+                    let msg = $"Error: %A{fst err.error}, message %s{snd err.error}"
                     Result.Error msg
                 | Result.Error e -> Result.Error e
             | x ->
-                printfn "Received unhandled MessageType %A" x
+                printfn $"Received unhandled MessageType %A{x}"
                 Result.Ok ()
             )
     match res with
     | Result.Ok _  -> None
     | Result.Error e ->
-        printfn "Error while processing message %s - error: %s" message e
+        printfn $"Error while processing message %s{message} - error: %s{e}"
         let data = [
-         "error", Encode.tuple2 (Encode.Enum.int) (Encode.string) (ErrorTypes.MessageParsingError, (sprintf "msg_type decoding error - %s" e))
+         "error", Encode.tuple2 (Encode.Enum.int) (Encode.string) (ErrorTypes.MessageParsingError, $"msg_type decoding error - %s{e}")
         ]
         sock.send (msgTypeEncoder MessageTypes.ErrorOccurred data)
-        Some (sprintf "Error occured - %s" e)
+        Some $"Error occured - %s{e}"
 
 
 //let decodeError s  = Decode.tuple2 Decode.Enum.int<ErrorTypes> Decode.string s ErrorDescription
 
 let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) (self_info: UserInfoResponse option) =
-    printfn "Sending text message: '%A', user_pk:'%A'" text user_pk
+    printfn $"Sending text message: '%A{text}', user_pk:'%A{user_pk}'"
     let randomId = generateRandomId()
     let data = [
         "text", Encode.string text
@@ -203,7 +203,7 @@ let sendOutgoingTextMessage (sock: WebSocket) (text: string) (user_pk: string) (
     self_info |> Option.map (fun x -> createMessageBoxFromOutgoingMessage text user_pk x.pk x.username randomId None)
 
 let sendOutgoingFileMessage (sock: WebSocket) (user_pk: string) (file_data: MessageModelFile) (self_info: UserInfoResponse option) =
-    printfn "Sending file message: '%s', user_pk:'%s'" file_data.id user_pk
+    printfn $"Sending file message: '%s{file_data.id}', user_pk:'%s{user_pk}'"
     let randomId = generateRandomId()
     let data = [
         "file_id", Encode.string file_data.id
@@ -214,10 +214,11 @@ let sendOutgoingFileMessage (sock: WebSocket) (user_pk: string) (file_data: Mess
     self_info |> Option.map (fun x -> createMessageBoxFromOutgoingMessage file_data.name user_pk x.pk x.username randomId (Some file_data))
 
 let sendIsTypingMessage (sock: WebSocket) =
+    printfn $"Sending 'isTyping'"
     sock.send (msgTypeEncoder MessageTypes.IsTyping [])
 
 let sendMessageReadMessage (sock: WebSocket) (user_pk: string) (message_id: int64) =
-    printfn "Sending 'read' message for message_id '%i', user_pk:'%A'" message_id user_pk
+    printfn $"Sending 'read' message for message_id '%i{message_id}', user_pk:'%A{user_pk}'"
     let data = [
         "user_pk", Encode.string user_pk
         "message_id", Encode.int (int32 message_id)
@@ -225,12 +226,12 @@ let sendMessageReadMessage (sock: WebSocket) (user_pk: string) (message_id: int6
     sock.send (msgTypeEncoder MessageTypes.MessageRead data)
 
 let backendUrl = "http://127.0.0.1:8000"
-let messagesEndpoint = sprintf "%s/messages/" backendUrl
-let dialogsEndpoint = sprintf "%s/dialogs/" backendUrl
-let selfEndpoint = sprintf "%s/self/" backendUrl
-let usersEndpoint = sprintf "%s/users/" backendUrl
+let messagesEndpoint = $"%s{backendUrl}/messages/"
+let dialogsEndpoint = $"%s{backendUrl}/dialogs/"
+let selfEndpoint = $"%s{backendUrl}/self/"
+let usersEndpoint = $"%s{backendUrl}/users/"
 
-let uploadEndpoint = sprintf "%s/upload/" backendUrl
+let uploadEndpoint = $"%s{backendUrl}/upload/"
 
 
 let uploadFile (f: FileList) (csrfToken: string) =
@@ -345,12 +346,12 @@ let filterMessagesForDialog (d: ChatItem option) (messages: MessageBox [])=
     | Some dialog -> messages |> Array.filter (fun m -> m.data.dialog_id = dialog.id)
     | None -> Array.empty
 
-let markMessagesForDialogAsRead (sock:WebSocket) (d: ChatItem) (messages: MessageBox []) (msgReadCallback: int64 -> unit)=
+let markMessagesForDialogAsRead (sock:WebSocket) (d: ChatItem) (messages: MessageBox []) =
     filterMessagesForDialog (Some d) messages
     |> Array.filter (fun y -> y.status <> MessageBoxStatus.Read && y.data.out = false && y.HasDbId() )
-    |> Array.iter (fun x ->
-        do msgReadCallback x.data.message_id
+    |> Array.map (fun x ->
         do sendMessageReadMessage sock d.id x.data.message_id
+        x.data.message_id
     )
 
 

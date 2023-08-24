@@ -280,10 +280,3 @@ module AppTypes =
         subtitle: string
         unread: int
     }
-    type State = {
-        socketConnectionState: int
-        messageList: MessageBox array
-        dialogList: ChatItem array
-        selectedDialog: ChatItem
-        socket: WebSocket
-    }

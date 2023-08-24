@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="src/Utils.fs" />
+    <Compile Include="src/Types.fs" />
+    <Compile Include="src/Logic.fs" />
+    <Compile Include="src/App.fs" />
+    <Compile Include="src/Index.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Fable.React.UseElmish" Version="1.0.0-beta-001" />
+    <PackageReference Include="Feliz" Version="2.0.0-prerelease-003" />
+    <PackageReference Include="Fable.Browser.Url" Version="1.0.3" />
+    <PackageReference Include="Fable.Browser.WebSocket" Version="1.2.0" />
+    <PackageReference Include="Fable.Core" Version="4.0.0-theta-006" />
+    <PackageReference Include="Fable.Browser.Dom" Version="2.10.1" />
+    <PackageReference Include="Fable.Fetch" Version="2.6.0" />
+    <PackageReference Include="Thoth.Json" Version="6.0.0" />
+  </ItemGroup>
+</Project>

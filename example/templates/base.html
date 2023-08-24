@@ -3,7 +3,11 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <link href="{% static "css/main.css" %}" rel="stylesheet" type="text/css" media="all">
+        <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script type="module" crossorigin src="{% static 'js/index.js' %}"></script>
+
+        <link href="{% static "css/index.css" %}" rel="stylesheet" type="text/css" media="all">
         <title>{% block title %}Django Private Chat2 example{% endblock %}</title>
         {% block css %}{% endblock %}
     </head>
@@ -11,7 +15,7 @@
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <div id="root"></div>
-        <script src="{% static 'js/main.js' %}"></script>
+
         {% block extra_js %}{% endblock %}
     </body>
 
