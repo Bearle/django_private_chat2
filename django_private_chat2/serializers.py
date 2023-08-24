@@ -8,11 +8,10 @@ def serialize_file_model(m: UploadedFile) -> Dict[str, str]:
             'size': m.file.size, 'name': os.path.basename(m.file.name)}
 
 
-def serialize_message_model(m: MessageModel, user_id):
+def serialize_message_model(m: MessageModel, user_id) -> Dict[str, bool | Dict[str, str] | None | int | str]:
     sender_pk = m.sender.pk
     is_out = sender_pk == user_id
     # TODO: add forwards
-    # TODO: add replies
     obj = {
         "id": m.id,
         "text": m.text,
@@ -23,7 +22,8 @@ def serialize_message_model(m: MessageModel, user_id):
         "sender": str(sender_pk),
         "recipient": str(m.recipient.pk),
         "out": is_out,
-        "sender_username": m.sender.get_username()
+        "sender_username": m.sender.get_username(),
+        "reply_to": m.reply_to.id if m.reply_to else None
     }
     return obj
 

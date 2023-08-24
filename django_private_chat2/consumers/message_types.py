@@ -14,6 +14,7 @@ class MessageTypeTextMessage(TypedDict):
     text: str
     user_pk: str
     random_id: int
+    reply_to: Optional[int]
 
 
 class MessageTypeMessageRead(TypedDict):
@@ -25,6 +26,7 @@ class MessageTypeFileMessage(TypedDict):
     file_id: str
     user_pk: str
     random_id: int
+    reply_to: Optional[int]
 
 
 class MessageTypes(enum.IntEnum):
@@ -64,6 +66,7 @@ class OutgoingEventNewTextMessage(NamedTuple):
     sender: str
     receiver: str
     sender_username: str
+    reply_to: Optional[int]
     type: str = "new_text_message"
 
     def to_json(self) -> str:
@@ -73,6 +76,7 @@ class OutgoingEventNewTextMessage(NamedTuple):
             "text": self.text,
             "sender": self.sender,
             "receiver": self.receiver,
+            "reply_to": self.reply_to,
             "sender_username": self.sender_username,
         })
 
@@ -83,6 +87,7 @@ class OutgoingEventNewFileMessage(NamedTuple):
     sender: str
     receiver: str
     sender_username: str
+    reply_to: Optional[int]
     type: str = "new_file_message"
 
     def to_json(self) -> str:
@@ -92,6 +97,7 @@ class OutgoingEventNewFileMessage(NamedTuple):
             "file": self.file,
             "sender": self.sender,
             "receiver": self.receiver,
+            "reply_to": self.reply_to,
             "sender_username": self.sender_username,
         })
 

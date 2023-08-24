@@ -4549,10 +4549,10 @@ raw-body@2.4.0:
     iconv-lite "0.4.24"
     unpipe "1.0.0"
 
-react-chat-elements@^10.14.0:
-  version "10.14.0"
-  resolved "https://registry.yarnpkg.com/react-chat-elements/-/react-chat-elements-10.14.0.tgz#c010fa5d2ad1327493be3f67aaeb4fbb96dbde54"
-  integrity sha512-IEAEzWQbH91QuQBxk21XNdfdtK3OJq31sU6zhjnb1WubpSnqpfI4aqPheqsLSukqvWf/tIA2sO0WXz9Kg36YCA==
+react-chat-elements@^10.16.0:
+  version "10.16.0"
+  resolved "https://registry.yarnpkg.com/react-chat-elements/-/react-chat-elements-10.16.0.tgz#851d7e8f69958a2129b76eb49d929a3edaa06ee4"
+  integrity sha512-bgH6SEguaoYN77BM1T7IDuKNM+706absB4IqOH8+SnLC1Rnguwb/3lt0MyXc14BkQLYcol/DP1GS95Vnlc3atQ==
   dependencies:
     classnames "^2.2.5"
     react-icons "^2.2.5"

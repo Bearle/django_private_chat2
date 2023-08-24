@@ -146,7 +146,7 @@ class TestCaseMessageModelGenerated(TestCase):
         """
         message_model = MessageModelFactory.create()
         message_model_dict = model_to_dict(message_model)
-        self.assertEqual(len(message_model_dict.keys()), 7)
+        self.assertEqual(len(message_model_dict.keys()), 8)
 
     def test_attribute_content(self):
         """

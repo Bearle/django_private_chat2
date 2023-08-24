@@ -12,6 +12,7 @@ class SerializerTests(TestCase):
         self.recipient = UserFactory.create()
         self.message = MessageModel.objects.create(sender=self.sender, recipient=self.recipient,
                                                    text="testText", read=True)
+        self.reply_msg = MessageModel.objects.create(sender=self.sender, recipient=self.recipient, text = "someReply", read=False, reply_to=self.message)
         self.dialog = DialogsModel.objects.filter(user1=self.sender, user2=self.recipient).first()
         self.file = UploadedFile.objects.create(uploaded_by=self.sender, file="LICENSE")
 
@@ -37,6 +38,7 @@ class SerializerTests(TestCase):
             "file": serialize_file_model(self.file),
             "sender": str(self.sender.pk),
             "recipient": str(self.recipient.pk),
+            "reply_to": None,
             "out": True,
             "sender_username": self.sender.username
         }
@@ -53,6 +55,24 @@ class SerializerTests(TestCase):
             "file": None,
             "sender": str(self.sender.pk),
             "recipient": str(self.recipient.pk),
+            "reply_to": None,
+            "out": True,
+            "sender_username": self.sender.username
+        }
+        self.assertEqual(serialized, o)
+
+    def test_serialize_reply_msg(self):
+        serialized = serialize_message_model(self.reply_msg, self.sender.pk)
+        o = {
+            "id": self.reply_msg.id,
+            "text": "someReply",
+            "sent": int(self.message.created.timestamp()),
+            "edited": int(self.message.modified.timestamp()),
+            "read": False,
+            "file": None,
+            "sender": str(self.sender.pk),
+            "recipient": str(self.recipient.pk),
+            "reply_to": self.message.id,
             "out": True,
             "sender_username": self.sender.username
         }
@@ -67,7 +87,7 @@ class SerializerTests(TestCase):
             "other_user_id": str(self.recipient.id),
             "unread_count": 0,
             "username": self.recipient.username,
-            "last_message": serialize_message_model(self.message, self.sender.pk)
+            "last_message": serialize_message_model(self.reply_msg, self.sender.pk)
         }
         self.assertEqual(serialized, o)
 

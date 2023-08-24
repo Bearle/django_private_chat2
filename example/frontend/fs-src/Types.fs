@@ -33,6 +33,7 @@ module AppTypes =
        sender: string
        recipient: string
        sender_username: string
+       reply_to: int option
        out: bool }
       static member Decoder: Decoder<MessageModel> =
           Decode.object (fun get ->
@@ -46,6 +47,7 @@ module AppTypes =
                   sender = get.Required.Field "sender" Decode.string
                   recipient = get.Required.Field "recipient" Decode.string
                   sender_username =  get.Required.Field "sender_username" Decode.string
+                  reply_to = get.Optional.Field "reply_to" Decode.int
                   out = get.Required.Field "out" Decode.bool
               })
 
@@ -141,6 +143,7 @@ module AppTypes =
         sender: string
         receiver: string
         sender_username: string
+        reply_to: int option
         }
         static member Decoder: Decoder<MessageTypeTextMessage> =
           Decode.object (fun get ->
@@ -150,6 +153,7 @@ module AppTypes =
                   sender = get.Required.Field "sender" Decode.string
                   receiver = get.Required.Field "receiver" Decode.string
                   sender_username = get.Required.Field "sender_username" Decode.string
+                  reply_to = get.Optional.Field "reply_to" Decode.int
               })
 
     type MessageTypeFileMessage =
@@ -159,6 +163,7 @@ module AppTypes =
         sender: string
         receiver: string
         sender_username: string
+        reply_to: int option
         }
         static member Decoder: Decoder<MessageTypeFileMessage> =
           Decode.object (fun get ->
@@ -168,6 +173,7 @@ module AppTypes =
                   sender = get.Required.Field "sender" Decode.string
                   receiver = get.Required.Field "receiver" Decode.string
                   sender_username = get.Required.Field "sender_username" Decode.string
+                  reply_to = get.Optional.Field "reply_to" Decode.int
               })
 
     type MessageTypeMessageIdCreated =
@@ -189,6 +195,7 @@ module AppTypes =
         | InvalidRandomId = 5
         | FileMessageInvalid = 6
         | FileDoesNotExist = 7
+        | InvalidReplyMsgId = 8
 
     type ErrorDescription = ErrorTypes * string
 
@@ -213,6 +220,7 @@ module AppTypes =
         | ErrorOccurred = 7
         | MessageIdCreated = 8
         | NewUnreadCount = 9
+        | TypingStopped = 10
 
     let msgTypeEncoder (t:MessageTypes) data =
         let d = ["msg_type", Encode.Enum.int t ] |> List.append data
@@ -266,6 +274,7 @@ module AppTypes =
         date: DateTimeOffset
         data: MessageBoxData
         onDownload: (obj -> unit) option
+        replyButton: bool
     } with member this.HasDbId() = this.data.message_id > 0L
 
     type ChatItem = {
